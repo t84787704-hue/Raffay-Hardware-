@@ -1,0 +1,6 @@
+{
+  "name": "RHC Wholesale Hardware Catalog",
+  "description": "B2B wholesale hardware catalog featuring architectural hardware, locks, handles, die-cast fittings, and direct cloud product inventory management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

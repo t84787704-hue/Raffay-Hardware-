@@ -1,0 +1,33 @@
+{
+  "short_name": "RHC Group",
+  "name": "Raffay Hardware Company - Wholesale Hardware Catalog",
+  "icons": [
+    {
+      "src": "/logo-v2.png?v=2",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-v2.png?v=2",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/rhc-circular-logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512 any"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "48x48 72x72 96x96 128x128 256x256"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0E3B2E",
+  "theme_color": "#0E3B2E",
+  "display": "standalone",
+  "orientation": "portrait"
+}

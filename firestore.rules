@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Hardware catalog, categories, and products collections
+    match /{document=**} {
+      // Allows read and write for testing and active app usage
+      allow read, write: if true;
+    }
+  }
+}

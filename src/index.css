@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+    background-color: #E8D5B7;
+  }
+
+  :root {
+    --primary-green: #0A2E24;
+    --primary-green-dark: #061D17;
+    --primary-green-light: #124A3B;
+    --gold-accent: #C8A165;
+    --gold-light: #E0C18B;
+    --gold-dark: #A98042;
+  }
+
+  html {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    scroll-behavior: smooth;
+  }
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-brand {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F3;
+}
+::-webkit-scrollbar-thumb {
+  background: #0A2E24;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C8A165;
+}
+
+/* Real-time search highlight pulse */
+@keyframes search-highlight-glow {
+  0% {
+    outline: 4px solid #C8A165;
+    box-shadow: 0 0 0 6px rgba(200, 161, 101, 0.45), 0 0 35px rgba(200, 161, 101, 0.7);
+    transform: scale(1.03);
+  }
+  30% {
+    outline: 4px solid #E0C18B;
+    box-shadow: 0 0 0 8px rgba(224, 193, 139, 0.65), 0 0 45px rgba(200, 161, 101, 0.85);
+    transform: scale(1.04);
+  }
+  70% {
+    outline: 3px solid #C8A165;
+    box-shadow: 0 0 0 4px rgba(200, 161, 101, 0.35), 0 0 20px rgba(200, 161, 101, 0.5);
+    transform: scale(1.01);
+  }
+  100% {
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 0 rgba(200, 161, 101, 0);
+    transform: scale(1);
+  }
+}
+
+.search-highlight-target {
+  animation: search-highlight-glow 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  z-index: 30 !important;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
