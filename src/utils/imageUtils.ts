@@ -4,20 +4,20 @@ import type React from 'react';
  * Universal Image Compressor & Optimization Engine
  * 
  * Guarantees that ANY image uploaded (even 5MB to 15MB phone camera pictures)
- * is automatically compressed in the background to <50KB JPEG Base64.
+ * is automatically compressed in the background to <=200KB JPEG Base64.
  * 
  * Rules:
  * 1. Automatically downscales and compresses in background without user size warnings.
  * 2. Solid white canvas backing to eliminate black transparency artifacts.
- * 3. Enforces strict <50KB payload for instant Firestore persistence and zero bundle bloat.
+ * 3. Enforces strict <=200KB payload for instant Supabase/Storage persistence and high visual quality.
  */
 
 /**
  * Fast in-browser image compressor and converter.
- * - Resizes image to max 800px (or 600px if needed) using HTML5 Canvas
- * - Encodes as JPEG with quality 0.60
- * - Returns a Base64 data URL (data:image/jpeg;base64,...) under 150KB
- * - Instant execution (<100ms) with zero server/storage dependency
+ * - Resizes image to max 1024px width/height using HTML5 Canvas
+ * - Encodes as JPEG, reducing quality from 0.90 downwards until file size <= 200KB, min quality 0.50
+ * - Returns a Base64 data URL under 200KB (200 * 1024 bytes)
+ * - Logs: `Compressed ${originalSize}KB -> ${compressedSize}KB`
  */
 export async function compressAndConvert(input: File | Blob | string): Promise<string> {
   // If user pasted an HTTP/HTTPS URL, return it directly
@@ -25,34 +25,74 @@ export async function compressAndConvert(input: File | Blob | string): Promise<s
     return input.trim();
   }
 
+  const getOriginalSizeKB = (src: string, fileOrBlob?: File | Blob): number => {
+    if (fileOrBlob && typeof fileOrBlob.size === 'number') {
+      return Math.max(1, Math.round(fileOrBlob.size / 1024));
+    }
+    const bytes = getBase64SizeBytes(src);
+    return Math.max(1, Math.round(bytes / 1024));
+  };
+
   return new Promise((resolve, reject) => {
-    const processImageSource = (src: string) => {
+    const processImageSource = (src: string, originalSizeKB: number) => {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
 
       img.onload = () => {
         try {
-          // Pass 1: Max 800px at 0.60 quality
-          const pass1 = compressImageWithCanvas(img, 800, 800, 0.60);
-          const size1 = getBase64SizeBytes(pass1);
+          const maxDimension = 1024;
+          let width = img.naturalWidth || img.width || 500;
+          let height = img.naturalHeight || img.height || 500;
 
-          // If under 180KB, perfect
-          if (size1 <= 180 * 1024) {
-            resolve(pass1);
-            return;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
           }
 
-          // Pass 2: If > 180KB, compress to 600px at 0.52 quality (~90KB-130KB)
-          const pass2 = compressImageWithCanvas(img, 600, 600, 0.52);
-          const size2 = getBase64SizeBytes(pass2);
-          if (size2 <= 160 * 1024) {
-            resolve(pass2);
-            return;
+          width = Math.max(1, Math.round(width));
+          height = Math.max(1, Math.round(height));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error('Canvas 2D context unavailable');
           }
 
-          // Pass 3: Ultra compact fallback (500px at 0.45 quality ~60KB)
-          const pass3 = compressImageWithCanvas(img, 500, 500, 0.45);
-          resolve(pass3);
+          // Solid white background to prevent transparent PNGs from becoming black
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const maxTargetBytes = 200 * 1024; // 200KB per image
+          let quality = 0.90;
+          const minQuality = 0.50;
+          const qualityStep = 0.05;
+
+          let bestDataUrl = canvas.toDataURL('image/jpeg', quality);
+          let bestSizeBytes = getBase64SizeBytes(bestDataUrl);
+
+          // Compression loop: reduce quality from 0.9 downwards until file size <= 200KB (min quality 0.5)
+          while (bestSizeBytes > maxTargetBytes && quality > minQuality) {
+            quality = Math.max(minQuality, Math.round((quality - qualityStep) * 100) / 100);
+            bestDataUrl = canvas.toDataURL('image/jpeg', quality);
+            bestSizeBytes = getBase64SizeBytes(bestDataUrl);
+          }
+
+          const compressedSizeKB = Math.round(bestSizeBytes / 1024);
+          console.log(`Compressed ${originalSizeKB}KB -> ${compressedSizeKB}KB`);
+
+          resolve(bestDataUrl);
         } catch (err) {
           console.warn('[compressAndConvert] Canvas processing error:', err);
           // Return source data URL as fallback
@@ -72,19 +112,22 @@ export async function compressAndConvert(input: File | Blob | string): Promise<s
     };
 
     if (typeof input === 'string') {
-      processImageSource(input);
-    } else if (input instanceof Blob || (input && (input as any).size !== undefined)) {
+      const origSize = getOriginalSizeKB(input);
+      processImageSource(input, origSize);
+    } else if (input instanceof Blob || (input && typeof (input as any).size !== 'undefined')) {
+      const fileBlob = input as Blob;
+      const origSize = Math.max(1, Math.round(fileBlob.size / 1024));
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
         if (dataUrl) {
-          processImageSource(dataUrl);
+          processImageSource(dataUrl, origSize);
         } else {
           reject(new Error('Failed to read image file data.'));
         }
       };
       reader.onerror = (err) => reject(err);
-      reader.readAsDataURL(input as Blob);
+      reader.readAsDataURL(fileBlob);
     } else {
       resolve(DEFAULT_FALLBACK_IMAGE);
     }
@@ -136,10 +179,10 @@ function compressImageWithCanvas(
   return canvas.toDataURL('image/jpeg', quality);
 }
 
-export const MAX_OPTIMIZED_IMAGE_BYTES = 120 * 1024; // 120 KB target
-export const MAX_SINGLE_IMAGE_BYTES = 150 * 1024;
-export const MAX_CATEGORY_IMAGE_BYTES = 120 * 1024;
-export const MAX_TOTAL_IMAGES_BYTES = 600 * 1024;
+export const MAX_OPTIMIZED_IMAGE_BYTES = 200 * 1024; // 200 KB target
+export const MAX_SINGLE_IMAGE_BYTES = 200 * 1024;
+export const MAX_CATEGORY_IMAGE_BYTES = 200 * 1024;
+export const MAX_TOTAL_IMAGES_BYTES = 800 * 1024;
 
 export const PLACEHOLDER_HANDLE_IMAGE = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 100 100" fill="none"><rect width="100" height="100" rx="12" fill="%23FFFFFF"/><rect x="42" y="18" width="16" height="64" rx="4" fill="%23A37D45"/><circle cx="50" cy="34" r="5" fill="%235A4A3A"/><path d="M50 34 L78 34 C82 34 85 37 85 41 C85 45 82 48 78 48 L50 48" fill="%23C8A165"/><rect x="47" y="56" width="6" height="14" rx="2" fill="%235A4A3A"/></svg>`;
 
@@ -490,7 +533,7 @@ export async function ensureBase64Image(src: string): Promise<string> {
 export const ensureBase64ProductImage = ensureBase64Image;
 
 /**
- * Prepares and validates product images for Firestore persistence.
+ * Prepares and validates product images for Supabase persistence.
  * Optimizes each image to <50KB Base64.
  */
 export async function prepareProductImages(inputs: {

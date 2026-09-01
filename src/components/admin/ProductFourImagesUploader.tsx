@@ -112,7 +112,7 @@ export function ProductFourImagesUploader({
             <span>Product Images (Optional - 4 Angle Views)</span>
           </label>
           <p className="text-[11px] text-gray-500">
-            Instant in-browser compression (<span className="text-[#0A2E24] font-semibold">&lt;150KB</span>) &amp; direct URL support. Optional to upload 1, 2, 3 or all 4 photos.
+            Instant in-browser compression (<span className="text-[#0A2E24] font-semibold">&lt;200KB</span>) &amp; direct URL support. Optional to upload 1, 2, 3 or all 4 photos.
           </p>
         </div>
 

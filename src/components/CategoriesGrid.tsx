@@ -24,7 +24,7 @@ export function CategoriesGrid({
   const navigate = useNavigate();
   const { categories } = useHardwareStore();
 
-  // Show ALL categories from Firestore / store (all categories, sorted by custom order)
+  // Show ALL categories from Supabase / store (all categories, sorted by custom order)
   const allCategories = React.useMemo(() => {
     return categories
       .filter(c => {

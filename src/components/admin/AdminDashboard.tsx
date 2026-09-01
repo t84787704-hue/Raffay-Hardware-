@@ -276,7 +276,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
             
             {/* Supabase & Storage Connection Badge */}
             <div 
-              id="firestore-status-badge"
+              id="supabase-status-badge"
               className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#061D17] border border-[#C8A165]/40 text-[10px] text-gray-300"
               title="Real-time Supabase Database and Storage active"
             >
@@ -456,9 +456,9 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Live Cloud Sync</span>
                   <div className="text-lg font-bold text-emerald-700 flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Firestore Active</span>
+                    <span>Supabase Active</span>
                   </div>
-                  <p className="text-[11px] text-gray-500">Real-time B2B Catalog</p>
+                  <p className="text-[11px] text-gray-500">Real-time Supabase B2B Catalog</p>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-700">
                   <CheckCircle2 className="w-6 h-6 text-emerald-600" />
@@ -664,7 +664,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                     ⠿
                   </span>
                   <span>
-                    <strong className="text-[#0A2E24]">Drag & Drop Reorder:</strong> Grab the <strong className="text-gray-800">⠿ grip handle</strong> or use the <strong className="text-gray-800">↑ ↓ buttons</strong> to set the category display sequence. Order changes are automatically saved to Firestore in real-time.
+                    <strong className="text-[#0A2E24]">Drag & Drop Reorder:</strong> Grab the <strong className="text-gray-800">⠿ grip handle</strong> or use the <strong className="text-gray-800">↑ ↓ buttons</strong> to set the category display sequence. Order changes are automatically saved to Supabase in real-time.
                   </span>
                 </div>
                 <span className="text-[11px] text-gray-500 font-semibold hidden md:inline">
@@ -781,7 +781,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                         const count = await cleanOldBase64Products();
                         setCleanMessage(
                           count > 0 
-                            ? `✓ Successfully removed ${count} oversized legacy Base64 products from Firestore.` 
+                            ? `✓ Successfully removed ${count} oversized legacy Base64 products from Supabase.` 
                             : '✓ All products are clean! No oversized Base64 items found.'
                         );
                       } catch (err: any) {
@@ -791,7 +791,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                       }
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition-colors cursor-pointer border border-amber-300 disabled:opacity-50"
-                    title="Scan Firestore and delete legacy oversized Base64 items"
+                    title="Scan Supabase and delete legacy oversized Base64 items"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-amber-700" />
                     <span>{isCleaningBase64 ? 'Cleaning Base64...' : 'Clean Old Base64 Products'}</span>

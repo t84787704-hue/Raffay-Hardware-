@@ -61,7 +61,7 @@ export function LogoBrandingSettingsCard({ onViewStorefront }: LogoBrandingSetti
     }
   };
 
-  // Handle saving logo to Firestore settings/branding
+  // Handle saving logo to Supabase settings/branding
   const handleSaveLogo = async () => {
     if (!previewUrl) {
       setStatusMessage({
@@ -77,15 +77,15 @@ export function LogoBrandingSettingsCard({ onViewStorefront }: LogoBrandingSetti
       await updateLogo(previewUrl);
       setStatusMessage({
         type: 'success',
-        text: '✓ New website logo saved to Firestore & live on all devices!'
+        text: '✓ New website logo saved to Supabase & live on all devices!'
       });
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (err: any) {
-      console.error('Error saving logo to Firestore:', err);
+      console.error('Error saving logo to Supabase:', err);
       setStatusMessage({
         type: 'error',
-        text: `Failed to save logo: ${err?.message || 'Firestore error'}`
+        text: `Failed to save logo: ${err?.message || 'Supabase error'}`
       });
     } finally {
       setIsSaving(false);
@@ -239,7 +239,7 @@ export function LogoBrandingSettingsCard({ onViewStorefront }: LogoBrandingSetti
                 </button>
 
                 <button
-                  id="btn-save-logo-firestore"
+                  id="btn-save-logo-supabase"
                   disabled={isSaving}
                   onClick={handleSaveLogo}
                   className="px-4 py-1.5 rounded-xl bg-[#0A2E24] text-[#E0C18B] hover:bg-[#124A3B] border border-[#C8A165] text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
@@ -247,7 +247,7 @@ export function LogoBrandingSettingsCard({ onViewStorefront }: LogoBrandingSetti
                   {isSaving ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving to Firestore...</span>
+                      <span>Saving to Supabase...</span>
                     </>
                   ) : (
                     <>
@@ -280,7 +280,7 @@ export function LogoBrandingSettingsCard({ onViewStorefront }: LogoBrandingSetti
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-gray-500 pt-1">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-              <span>Saved in Firestore doc: <code className="font-mono text-gray-700">settings/branding</code></span>
+              <span>Saved in Supabase: <code className="font-mono text-gray-700">settings/branding</code></span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />

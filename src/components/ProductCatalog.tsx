@@ -24,7 +24,7 @@ export function ProductCatalog({
   const { categories, products } = useHardwareStore();
   const [galleryProduct, setGalleryProduct] = useState<ProductItem | null>(null);
 
-  // Use Firestore products if available; otherwise fallback to baseline INITIAL_PRODUCTS
+  // Use Supabase products if available; otherwise fallback to baseline INITIAL_PRODUCTS
   const displayableProducts = useMemo(() => {
     const rawList = products.length > 0 ? products : INITIAL_PRODUCTS;
 

@@ -91,7 +91,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
       const catDisplayName = matchedCat ? matchedCat.name : categoryId;
       const catIdValue = matchedCat ? matchedCat.id : (categoryId || 'cat_lock_bearing');
 
-      // Step 1: Process and compress the 4 angle images (<150KB) and upload if Supabase is connected
+      // Step 1: Process and compress the 4 angle images (<=200KB) and upload if Supabase is connected
       const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'prod';
       const {
         image_main,

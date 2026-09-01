@@ -19,7 +19,7 @@ export function dataURLToBlob(dataurl: string): Blob {
 }
 
 /**
- * Compresses an image in-browser to <150KB JPEG, then uploads it to the Supabase Storage bucket 'product-images'.
+ * Compresses an image in-browser to <=200KB JPEG, then uploads it to the Supabase Storage bucket 'product-images'.
  * Returns the public URL of the uploaded image (or compressed base64 fallback).
  */
 export async function uploadImageToSupabaseStorage(
@@ -35,7 +35,7 @@ export async function uploadImageToSupabaseStorage(
       return fileOrBase64;
     }
 
-    // Step 1: Compress in-browser to <150KB Base64 JPEG
+    // Step 1: Compress in-browser to <=200KB Base64 JPEG
     const compressedBase64 = await compressAndConvert(fileOrBase64);
 
     // If compressedBase64 is an external URL, return directly
@@ -45,7 +45,7 @@ export async function uploadImageToSupabaseStorage(
 
     // If Supabase is not configured or in offline preview, retain high-efficiency compressed base64
     if (!isSupabaseConfigured) {
-      console.log(`[Supabase Storage] Supabase credentials pending. Saved compressed ${slotName} image locally (<150KB).`);
+      console.log(`[Supabase Storage] Supabase credentials pending. Saved compressed ${slotName} image locally (<=200KB).`);
       return compressedBase64;
     }
 
@@ -65,7 +65,7 @@ export async function uploadImageToSupabaseStorage(
 
     if (error) {
       console.warn(`[Supabase Storage] Storage note for bucket "${SUPABASE_STORAGE_BUCKET}":`, error.message);
-      // If bucket doesn't exist or network error, return the compressed base64 (<150KB) so image is still saved
+      // If bucket doesn't exist or network error, return the compressed base64 (<=200KB) so image is still saved
       return compressedBase64;
     }
 

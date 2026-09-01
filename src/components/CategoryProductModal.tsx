@@ -83,7 +83,7 @@ export function CategoryProductModal({
       setIsSaving(true);
       setFormError(null);
 
-      // Save simplified payload to Firestore: name, categoryId, categoryName, images
+      // Save simplified payload to Supabase: name, categoryId, categoryName, images
       await onSave({
         name: trimmedName,
         productName: trimmedName,
