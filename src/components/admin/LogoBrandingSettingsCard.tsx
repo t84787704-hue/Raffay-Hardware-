@@ -12,7 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
-import { compressLogoFile } from '../../firebase/brandingService';
+import { compressLogoFile } from '../../services/supabaseBranding';
 
 interface LogoBrandingSettingsCardProps {
   onViewStorefront?: () => void;

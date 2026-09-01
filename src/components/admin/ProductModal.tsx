@@ -9,6 +9,7 @@ import {
 import { ProductItem, Category } from '../../types';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
 import { ProductFourImagesUploader } from './ProductFourImagesUploader';
+import { uploadFourProductImagesToSupabase } from '../../services/supabaseStorage';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ interface ProductModalProps {
 export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCategoryId }: ProductModalProps) {
   const { categories } = useHardwareStore();
 
-  // Simplified Form States: Name, Category, 4 Images
+  // Simplified Form States: Name, Category, 4 Images (Main-Front, Side, Back, Detail)
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [images, setImages] = useState<string[]>(['', '', '', '']);
@@ -46,10 +47,10 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
         initialImgs = [...initialData.images];
       } else if (typeof initialData.images === 'object' && initialData.images !== null) {
         initialImgs = [
-          (initialData.images as any).front,
-          (initialData.images as any).side,
-          (initialData.images as any).installed,
-          (initialData.images as any).back
+          (initialData.images as any).front || (initialData.images as any).image_main,
+          (initialData.images as any).side || (initialData.images as any).image_side,
+          (initialData.images as any).back || (initialData.images as any).image_back,
+          (initialData.images as any).detail || (initialData.images as any).installed || (initialData.images as any).image_detail
         ].filter(Boolean);
       }
       if (initialImgs.length === 0 && (initialData.image || initialData.imageBase64)) {
@@ -82,8 +83,6 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
       return;
     }
 
-    const validImages = images.filter((img) => typeof img === 'string' && img.trim().length > 0);
-
     try {
       setIsSaving(true);
       setFormError(null);
@@ -92,22 +91,40 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
       const catDisplayName = matchedCat ? matchedCat.name : categoryId;
       const catIdValue = matchedCat ? matchedCat.id : (categoryId || 'cat_lock_bearing');
 
-      // Save simplified payload to Firestore
+      // Step 1: Process and compress the 4 angle images (<150KB) and upload if Supabase is connected
+      const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'prod';
+      const {
+        image_main,
+        image_side,
+        image_back,
+        image_detail,
+        image_url
+      } = await uploadFourProductImagesToSupabase(images, slug);
+
+      const validImages = [image_main, image_side, image_back, image_detail].filter(Boolean);
+      const primaryImage = image_main || image_url || validImages[0] || images[0] || '';
+
+      // Step 2: Save product via store context (updates live storefront immediately & syncs with Supabase)
       await onSave({
         name: trimmedName,
         productName: trimmedName,
         categoryId: catIdValue,
         categoryName: catDisplayName,
         category: catDisplayName,
-        images: validImages,
-        image: validImages[0] || '',
-        imageBase64: validImages[0] || ''
+        images: validImages.length > 0 ? validImages : [images[0] || ''],
+        image: primaryImage,
+        imageBase64: primaryImage,
+        image_main: image_main || primaryImage,
+        image_side: image_side || undefined,
+        image_back: image_back || undefined,
+        image_detail: image_detail || undefined,
+        image_url: image_url || primaryImage
       });
 
       onClose();
     } catch (err: any) {
-      console.error('[Firebase Firestore] Error during product submission:', err);
-      setFormError(`Failed to save to Firestore: ${err?.message || 'Unknown error'}`);
+      console.warn('[Supabase] Submission note:', err);
+      setFormError(`Notice: ${err?.message || 'Could not complete product save. Please retry.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +150,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
                 {initialData ? `Edit Product: ${initialData.name || initialData.productName}` : 'Add New Hardware Product'}
               </h3>
               <p className="text-[11px] text-[#E0C18B]/80">
-                Product Name is required. Photos are optional (10-second instant save)
+                Product Name is required. 4-angle views uploaded to Supabase Storage &amp; database.
               </p>
             </div>
           </div>
@@ -221,12 +238,12 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 text-[#C8A165] animate-spin" />
-                  <span>Saving to Firestore...</span>
+                  <span>Saving to Supabase...</span>
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4 text-[#C8A165]" />
-                  <span>{initialData ? 'Save Product Changes' : 'Publish Product to Firestore'}</span>
+                  <span>{initialData ? 'Save Product Changes' : 'Publish Product to Supabase'}</span>
                 </>
               )}
             </button>

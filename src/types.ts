@@ -45,6 +45,11 @@ export interface ProductItem {
   description?: string;
   image?: string;
   imageBase64?: string;
+  image_main?: string;
+  image_side?: string;
+  image_back?: string;
+  image_detail?: string;
+  image_url?: string;
   featurePoint1?: string;
   featurePoint2?: string;
   tags?: string[];

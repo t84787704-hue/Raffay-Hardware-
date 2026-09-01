@@ -201,7 +201,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
       }
       setEditingCategory(null);
     } catch (err) {
-      console.error('[Firebase Firestore] Error in handleSaveCategory:', err);
+      console.error('[Supabase] Error in handleSaveCategory:', err);
     }
   };
 
@@ -211,7 +211,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
         await deleteCategory(categoryToDelete.id);
         setCategoryToDelete(null);
       } catch (err) {
-        console.error('[Firebase Firestore] Error in handleConfirmDeleteCategory:', err);
+        console.error('[Supabase] Error in handleConfirmDeleteCategory:', err);
       }
     }
   };
@@ -226,7 +226,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
       }
       setEditingProduct(null);
     } catch (err: any) {
-      console.error('[Firebase Firestore] Error in handleSaveProduct:', err);
+      console.error('[Supabase] Error in handleSaveProduct:', err);
       throw err;
     }
   };
@@ -237,7 +237,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
         await deleteProduct(productToDelete.id);
         setProductToDelete(null);
       } catch (err) {
-        console.error('[Firebase Firestore] Error in handleConfirmDeleteProduct:', err);
+        console.error('[Supabase] Error in handleConfirmDeleteProduct:', err);
       }
     }
   };
@@ -266,7 +266,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                 </span>
               </div>
               <p className="text-[11px] text-[#C8A165]">
-                Wholesale Portal &bull; Direct Firestore Database Connected
+                Wholesale Portal &bull; Supabase Database Connected
               </p>
             </div>
           </div>
@@ -274,14 +274,14 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2.5 sm:gap-3">
             
-            {/* Firestore & Storage Project Connection Badge */}
+            {/* Supabase & Storage Connection Badge */}
             <div 
               id="firestore-status-badge"
               className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#061D17] border border-[#C8A165]/40 text-[10px] text-gray-300"
-              title="Real-time Firestore sync and Firebase Storage active"
+              title="Real-time Supabase Database and Storage active"
             >
               <div className={`w-2 h-2 rounded-full ${isFirestoreSyncing ? 'bg-amber-400 animate-spin' : firestoreError ? 'bg-red-400' : 'bg-emerald-400 animate-pulse'}`} />
-              <span className="font-mono text-[#E0C18B]">Storage &amp; Firestore: rh-group-9123a</span>
+              <span className="font-mono text-[#E0C18B]">Supabase: public.products</span>
             </div>
 
             {/* View Live Customer Storefront */}
