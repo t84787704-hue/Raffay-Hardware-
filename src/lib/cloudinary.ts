@@ -1,91 +1,32 @@
-/**
- * Cloudinary Direct Unsigned Image Upload Service
- * 
- * Uploads images directly to Cloudinary using unsigned upload presets:
- * POST https://api.cloudinary.com/v1_1/${cloudName}/image/upload
- * Body: FormData with 'file' and 'upload_preset' ONLY (No api_key, no signature)
- */
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 export async function uploadToCloudinary(file: File | Blob | string): Promise<string> {
-  if (!file) {
-    return '';
-  }
+  if (!file) return '';
 
-  // If already an online URL (http/https), return directly
+  // If already a hosted URL, return as-is
   if (typeof file === 'string' && (file.startsWith('http://') || file.startsWith('https://'))) {
     return file.trim();
   }
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME?.trim() || '';
-  const preset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() || '';
-
-  // If environment variables are not set, fallback to local Base64
-  if (!cloudName || !preset) {
-    console.warn(
-      '[Cloudinary] Missing VITE_CLOUDINARY_CLOUD_NAME or VITE_CLOUDINARY_UPLOAD_PRESET.'
-    );
-
-    if (typeof file === 'string') {
-      return file;
-    }
-
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve((reader.result as string) || '');
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
+  if (!CLOUD_NAME || !PRESET) {
+    throw new Error('Cloudinary env missing');
   }
 
-  const url = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', PRESET);
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', preset);
+  const res = await fetch(url, { method: 'POST', body: fd });
+  const data = await res.json();
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.secure_url) {
-      let errorMessage = data?.error?.message || `HTTP ${response.status}`;
-      
-      // Provide clear guidance if Cloudinary says "Unknown API key" (happens when preset is set to Signed instead of Unsigned in Cloudinary console)
-      if (errorMessage.toLowerCase().includes('unknown api key') || errorMessage.toLowerCase().includes('api key')) {
-        errorMessage = `${errorMessage} - In Cloudinary Settings > Upload, make sure your upload preset "${preset}" Signing Mode is set to "Unsigned".`;
-      }
-
-      console.error('[Cloudinary Upload Error]', errorMessage, data);
-      throw new Error(`Cloudinary Error: ${errorMessage}`);
-    }
-
-    return data.secure_url as string;
-  } catch (error: any) {
-    console.error('[Cloudinary] Upload failed:', error);
-
-    // If input is already a string (Base64 data URL), return it as safe fallback
-    if (typeof file === 'string') {
-      return file;
-    }
-
-    throw error;
+  if (!res.ok) {
+    throw new Error(data.error?.message || 'Upload failed');
   }
+
+  return data.secure_url;
 }
 
-/**
- * Uploads an array of image files/strings in parallel
- */
-export async function uploadMultipleToCloudinary(
-  files: (File | Blob | string)[]
-): Promise<string[]> {
-  return Promise.all(
-    files.map(async (f) => {
-      if (!f || (typeof f === 'string' && !f.trim())) return '';
-      return uploadToCloudinary(f);
-    })
-  );
-}
+export const uploadMultipleToCloudinary = (files: (File | Blob | string)[]) =>
+  Promise.all(files.map(uploadToCloudinary));
