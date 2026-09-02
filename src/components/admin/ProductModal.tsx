@@ -9,7 +9,7 @@ import {
 import { ProductItem, Category } from '../../types';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
 import { ProductFourImagesUploader } from './ProductFourImagesUploader';
-import { uploadFourProductImagesToSupabase } from '../../services/supabaseStorage';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -91,39 +91,38 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
       const catDisplayName = matchedCat ? matchedCat.name : categoryId;
       const catIdValue = matchedCat ? matchedCat.id : (categoryId || 'cat_lock_bearing');
 
-      // Step 1: Process and compress the 4 angle images (<=200KB) and upload if Supabase is connected
-      const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'prod';
-      const {
-        image_main,
-        image_side,
-        image_back,
-        image_detail,
-        image_url
-      } = await uploadFourProductImagesToSupabase(images, slug);
+      // Step 1: Upload images to Cloudinary (unsigned upload) to obtain secure_url
+      const uploadedImageUrls = await Promise.all(
+        images.map(async (img) => {
+          if (!img || !img.trim()) return '';
+          return await uploadToCloudinary(img);
+        })
+      );
 
-      const validImages = [image_main, image_side, image_back, image_detail].filter(Boolean);
-      const primaryImage = image_main || image_url || validImages[0] || images[0] || '';
+      const [image_main, image_side, image_back, image_detail] = uploadedImageUrls;
+      const validImages = uploadedImageUrls.filter(Boolean);
+      const primaryImage = image_main || validImages[0] || images.find(Boolean) || '';
 
-      // Step 2: Save product via store context (updates live storefront immediately & syncs with Supabase)
+      // Step 2: Save product via store context (updates live storefront immediately & syncs with database)
       await onSave({
         name: trimmedName,
         productName: trimmedName,
         categoryId: catIdValue,
         categoryName: catDisplayName,
         category: catDisplayName,
-        images: validImages.length > 0 ? validImages : [images[0] || ''],
+        images: validImages.length > 0 ? validImages : [primaryImage].filter(Boolean),
         image: primaryImage,
         imageBase64: primaryImage,
         image_main: image_main || primaryImage,
         image_side: image_side || undefined,
         image_back: image_back || undefined,
         image_detail: image_detail || undefined,
-        image_url: image_url || primaryImage
+        image_url: primaryImage
       });
 
       onClose();
     } catch (err: any) {
-      console.warn('[Supabase] Submission note:', err);
+      console.warn('[Cloudinary/Database] Submission note:', err);
       setFormError(`Notice: ${err?.message || 'Could not complete product save. Please retry.'}`);
     } finally {
       setIsSaving(false);
@@ -150,7 +149,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
                 {initialData ? `Edit Product: ${initialData.name || initialData.productName}` : 'Add New Hardware Product'}
               </h3>
               <p className="text-[11px] text-[#E0C18B]/80">
-                Product Name is required. 4-angle views uploaded to Supabase Storage &amp; database.
+                Product Name is required. 4-angle views uploaded directly to Cloudinary &amp; database.
               </p>
             </div>
           </div>

@@ -10,6 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE } from '../../utils/imageUtils';
+import { uploadToCloudinary } from '../../lib/cloudinary';
 
 export interface ProductFourImagesUploaderProps {
   images: string[];
@@ -60,11 +61,11 @@ export function ProductFourImagesUploader({
       setCompressingIndex(index);
       setErrorMsg(null);
 
-      // Instant in-browser canvas compression to Base64 (<150KB JPEG)
-      const base64Data = await compressAndConvert(file);
+      // Upload directly to Cloudinary (or compressed fallback if credentials pending)
+      const secureUrl = await uploadToCloudinary(file);
 
       const nextImages = [...currentImages];
-      nextImages[index] = base64Data;
+      nextImages[index] = secureUrl;
       onChange(nextImages);
     } catch (err: any) {
       console.error(`[ProductFourImagesUploader] Image processing error for box #${index + 1}:`, err);
@@ -191,8 +192,8 @@ export function ProductFourImagesUploader({
                 {isCompressing ? (
                   <div className="flex flex-col items-center justify-center text-center p-2 space-y-1.5">
                     <Loader2 className="w-6 h-6 text-[#C8A165] animate-spin" />
-                    <span className="text-[10px] font-bold text-[#0A2E24]">Compressing...</span>
-                    <span className="text-[9px] text-gray-500 font-mono">&lt; 150KB JPEG</span>
+                    <span className="text-[10px] font-bold text-[#0A2E24]">Uploading...</span>
+                    <span className="text-[9px] text-gray-500 font-mono">Cloudinary CDN</span>
                   </div>
                 ) : hasImage ? (
                   <>

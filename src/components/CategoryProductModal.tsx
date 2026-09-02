@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Category, ProductItem } from '../types';
 import { ProductFourImagesUploader } from './admin/ProductFourImagesUploader';
+import { uploadToCloudinary } from '../lib/cloudinary';
 
 interface CategoryProductModalProps {
   isOpen: boolean;
@@ -77,22 +78,30 @@ export function CategoryProductModal({
       return;
     }
 
-    const validImages = images.filter((img) => typeof img === 'string' && img.trim().length > 0);
-
     try {
       setIsSaving(true);
       setFormError(null);
 
-      // Save simplified payload to Supabase: name, categoryId, categoryName, images
+      // Upload to Cloudinary and get secure_url
+      const uploadedImages = await Promise.all(
+        images.map(async (img) => {
+          if (!img || !img.trim()) return '';
+          return await uploadToCloudinary(img);
+        })
+      );
+      const validImages = uploadedImages.filter(Boolean);
+      const primaryImage = validImages[0] || '';
+
+      // Save simplified payload: name, categoryId, categoryName, images
       await onSave({
         name: trimmedName,
         productName: trimmedName,
         categoryId: category.id,
         categoryName: category.name,
         category: category.name,
-        images: validImages, // Array of Base64 strings or URLs
-        image: validImages[0] || '', // Cover image
-        imageBase64: validImages[0] || ''
+        images: validImages.length > 0 ? validImages : [primaryImage].filter(Boolean),
+        image: primaryImage,
+        imageBase64: primaryImage
       });
 
       onClose();
