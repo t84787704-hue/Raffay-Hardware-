@@ -69,7 +69,6 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
     updateCategory, 
     deleteCategory, 
     reorderCategories,
-    resetCategories,
     products, 
     addProduct, 
     updateProduct, 
@@ -603,15 +602,6 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={resetCategories}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-colors cursor-pointer border border-gray-300"
-                    title="Reload pre-configured 100+ categories"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Reset 100+ Categories</span>
-                  </button>
-
                   <button
                     id="btn-add-category"
                     onClick={() => {
