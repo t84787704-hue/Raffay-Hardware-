@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+export { supabase, isSupabaseConfigured };
 import { ProductItem } from '../types';
 import { formatImageSrc, DEFAULT_FALLBACK_IMAGE } from '../utils/imageUtils';
 import { uploadFourProductImagesToSupabase } from './supabaseStorage';
