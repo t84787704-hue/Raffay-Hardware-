@@ -555,10 +555,12 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     await reorderCategories(updatedCategories);
   }, [reorderCategories]);
 
-  const resetCategories = useCallback(() => {
-    const resetList = INITIAL_CATEGORIES_100.map((cat, idx) => ({ ...cat, order: idx }));
-    setCategories(resetList);
-  }, []);
+  const resetCategories = async () => {
+    const { data, error } = await supabase.from('categories').select('*').order('created_at', { ascending: true });
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   // Helper to verify admin permissions for mutations
   const verifyAdminPermission = (): boolean => {
