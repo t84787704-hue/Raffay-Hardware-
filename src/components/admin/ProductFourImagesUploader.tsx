@@ -9,7 +9,7 @@ import {
   Sparkles,
   AlertCircle
 } from 'lucide-react';
-import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE } from '../../utils/imageUtils';
+import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE, addWatermarkToImage } from '../../utils/imageUtils';
 import { uploadToCloudinary } from '../../lib/cloudinary';
 import { uploadImageToSupabaseStorage } from '../../services/supabaseStorage';
 
@@ -26,71 +26,6 @@ const IMAGE_BOX_LABELS = [
   { index: 2, label: 'Back View (Optional)', required: false, hint: 'Reverse side, fixing holes & mechanism' },
   { index: 3, label: 'Detail / Size View (Optional)', required: false, hint: 'Close-up texture, size specs & finish' }
 ];
-
-/**
- * Adds a semi-transparent text watermark "RHC" at the bottom-right corner,
- * white color with black shadow, font bold 24px using HTML5 Canvas.
- */
-function addWatermarkToImage(file: File): Promise<Blob> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(file);
-          return;
-        }
-
-        // Draw original image
-        ctx.drawImage(img, 0, 0);
-
-        // Add semi-transparent text watermark "RHC" at bottom-right corner, white color with black shadow, font bold 24px
-        ctx.save();
-        ctx.font = 'bold 24px sans-serif';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 2;
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'bottom';
-
-        const padding = 16;
-        ctx.fillText('RHC', canvas.width - padding, canvas.height - padding);
-        ctx.restore();
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              resolve(file);
-            }
-          },
-          file.type || 'image/jpeg',
-          0.92
-        );
-      } catch (err) {
-        console.warn('[Watermark] Canvas processing note:', err);
-        resolve(file);
-      }
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(file);
-    };
-
-    img.src = objectUrl;
-  });
-}
 
 export function ProductFourImagesUploader({
   images,
@@ -129,15 +64,15 @@ export function ProductFourImagesUploader({
       setErrorMsg(null);
 
       // TASK 1: Add RHC Watermark on upload via canvas
-      const watermarkedBlob = await addWatermarkToImage(file);
+      const watermarkedFile = await addWatermarkToImage(file);
 
-      // Upload watermarked blob keeping original upload logic
+      // Upload watermarked file keeping original upload logic
       let secureUrl = '';
       try {
-        secureUrl = await uploadToCloudinary(watermarkedBlob);
+        secureUrl = await uploadToCloudinary(watermarkedFile);
       } catch (cloudErr) {
         // Fallback to Supabase Storage if Cloudinary is not configured
-        secureUrl = await uploadImageToSupabaseStorage(watermarkedBlob, sku || 'rhc-prod', `angle-${index + 1}`);
+        secureUrl = await uploadImageToSupabaseStorage(watermarkedFile, sku || 'rhc-prod', `angle-${index + 1}`);
       }
 
       const nextImages = [...currentImages];

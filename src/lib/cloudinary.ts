@@ -15,7 +15,11 @@ export async function uploadToCloudinary(file: File | Blob | string): Promise<st
 
   const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
   const fd = new FormData();
-  fd.append('file', file);
+  if (file instanceof Blob && !(file instanceof File)) {
+    fd.append('file', file, 'product_watermarked.jpg');
+  } else {
+    fd.append('file', file);
+  }
   fd.append('upload_preset', PRESET);
 
   const res = await fetch(url, { method: 'POST', body: fd });

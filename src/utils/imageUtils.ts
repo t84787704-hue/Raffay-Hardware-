@@ -13,6 +13,126 @@ import type React from 'react';
  */
 
 /**
+ * Draws the official RHC semi-transparent text watermark with black shadow/stroke
+ * at the bottom-right corner of the canvas. Font is bold and scaled to be clearly
+ * visible and legible across any background color or image resolution (minimum 24px).
+ */
+export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  const minDim = Math.min(width, height);
+  // Ensure font size is at least 24px, proportionally scaled for high-res images
+  const fontSize = Math.max(24, Math.round(minDim * 0.052));
+  const margin = Math.max(16, Math.round(fontSize * 0.6));
+
+  const x = width - margin;
+  const y = height - margin;
+
+  ctx.save();
+  ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+
+  // Black drop shadow for high contrast on dark & mid-tone backgrounds
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+  ctx.shadowBlur = Math.max(4, Math.round(fontSize * 0.16));
+  ctx.shadowOffsetX = Math.max(2, Math.round(fontSize * 0.06));
+  ctx.shadowOffsetY = Math.max(2, Math.round(fontSize * 0.06));
+
+  // Solid dark outline stroke to guarantee high contrast on pure white (#FFFFFF) backgrounds
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.lineWidth = Math.max(2.5, Math.round(fontSize * 0.08));
+  ctx.strokeText('RHC', x, y);
+
+  // High-legibility semi-transparent white text
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.fillText('RHC', x, y);
+  ctx.restore();
+}
+
+/**
+ * Processes an image File or Blob via HTML5 Canvas using a bulletproof FileReader
+ * data URL pipeline and applies the RHC watermark at the bottom-right corner.
+ * Returns a File ready for upload to Supabase or Cloudinary.
+ */
+export function addWatermarkToImage(file: File | Blob): Promise<File> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const width = img.naturalWidth || img.width || 800;
+          const height = img.naturalHeight || img.height || 600;
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
+            return;
+          }
+
+          // Draw original image
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Apply RHC watermark
+          drawRHCWatermark(ctx, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              const fileName = (file as File).name || 'product_watermarked.jpg';
+              if (blob) {
+                resolve(new File([blob], fileName, { type: 'image/jpeg', lastModified: Date.now() }));
+              } else {
+                try {
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                  const arr = dataUrl.split(',');
+                  const bstr = atob(arr[1]);
+                  let n = bstr.length;
+                  const u8arr = new Uint8Array(n);
+                  while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                  }
+                  resolve(new File([new Blob([u8arr], { type: 'image/jpeg' })], fileName, { type: 'image/jpeg' }));
+                } catch {
+                  resolve(file instanceof File ? file : new File([file], fileName, { type: 'image/jpeg' }));
+                }
+              }
+            },
+            'image/jpeg',
+            0.92
+          );
+        } catch (canvasErr) {
+          console.error('[addWatermarkToImage] Canvas processing notice:', canvasErr);
+          resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
+        }
+      };
+
+      img.onerror = (imgErr) => {
+        console.error('[addWatermarkToImage] Failed to decode image for watermarking:', imgErr);
+        resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
+      };
+
+      img.src = src;
+    };
+
+    reader.onerror = (readErr) => {
+      console.error('[addWatermarkToImage] FileReader error:', readErr);
+      resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
  * Fast in-browser image compressor and converter.
  * - Resizes image to max 1024px width/height using HTML5 Canvas
  * - Encodes as JPEG, reducing quality from 0.90 downwards until file size <= 200KB, min quality 0.50
@@ -73,6 +193,9 @@ export async function compressAndConvert(input: File | Blob | string): Promise<s
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
+
+          // Apply RHC watermark to all processed product pictures
+          drawRHCWatermark(ctx, width, height);
 
           const maxTargetBytes = 200 * 1024; // 200KB per image
           let quality = 0.90;
