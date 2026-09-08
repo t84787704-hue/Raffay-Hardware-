@@ -3,8 +3,8 @@ import { SUPABASE_STORAGE_BUCKET, dataURLToBlob } from './supabaseStorage';
 
 /**
  * Centered RHC Watermark burning using HTML5 Canvas:
- * - ctx.globalAlpha = 0.25
- * - ctx.font = `bold ${canvas.width * 0.15}px Arial`
+ * - ctx.globalAlpha = 0.30
+ * - ctx.font = `bold ${img.width * 0.15}px Arial`
  * - ctx.fillStyle = "white"
  * - ctx.textAlign = "center"
  * - ctx.textBaseline = "middle"
@@ -27,8 +27,8 @@ export const addWatermark = (fileOrBlob: File | Blob): Promise<Blob> => {
         }
         ctx.drawImage(img, 0, 0);
         // Center watermark RHC
-        ctx.globalAlpha = 0.25;
-        ctx.font = `bold ${canvas.width * 0.15}px Arial`;
+        ctx.globalAlpha = 0.30;
+        ctx.font = `bold ${img.width * 0.15}px Arial`;
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
