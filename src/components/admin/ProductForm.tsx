@@ -8,7 +8,7 @@ import { uploadImageToSupabaseStorage } from '../../services/supabaseStorage';
  * - fillStyle = 'white'
  * - textAlign = 'center'
  * - textBaseline = 'middle'
- * - globalAlpha = 0.25
+ * - globalAlpha = 0.30
  * - RHC at (canvas.width / 2, canvas.height / 2)
  */
 export const addWatermark = (file: File | Blob): Promise<Blob> => {
