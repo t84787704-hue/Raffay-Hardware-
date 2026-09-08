@@ -70,68 +70,41 @@ export function ProductFourImagesUploader({
       setCompressingIndex(index);
       setErrorMsg(null);
 
-      // Crop-proof watermark burned directly into file:
-      // In upload function, use canvas, draw image, then draw "RHC" in EXACT center
-      // with ctx.globalAlpha = 0.25, font = 'bold 120px Arial', fillStyle = '#9ca3af', center X,Y.
-      // Then canvas.toBlob() and upload that blob to Supabase.
+      const originalFile = file;
+
+      // Burn watermark into file:
       const watermarkedBlob = await new Promise<Blob>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (loadEvt) => {
-          const src = loadEvt.target?.result as string;
-          if (!src) return resolve(file);
-
-          const img = new Image();
-          img.onload = () => {
-            try {
-              const width = img.naturalWidth || img.width || 800;
-              const height = img.naturalHeight || img.height || 600;
-
-              const canvas = document.createElement('canvas');
-              canvas.width = width;
-              canvas.height = height;
-
-              const ctx = canvas.getContext('2d');
-              if (!ctx) return resolve(file);
-
-              // 1. Draw image
-              ctx.drawImage(img, 0, 0, width, height);
-
-              // 2. Draw "RHC" in EXACT center with requested parameters
-              ctx.save();
-              ctx.globalAlpha = 0.25;
-              if (width < 320 || height < 320) {
-                const scaled = Math.max(24, Math.round(Math.min(width, height) * 0.35));
-                ctx.font = `bold ${scaled}px Arial`;
-              } else {
-                ctx.font = 'bold 120px Arial';
-              }
-              ctx.fillStyle = '#9ca3af';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('RHC', width / 2, height / 2);
-              ctx.restore();
-
-              // 3. canvas.toBlob()
-              canvas.toBlob(
-                (blob) => {
-                  if (blob) resolve(blob);
-                  else resolve(file);
-                },
-                'image/jpeg',
-                0.92
-              );
-            } catch {
-              resolve(file);
-            }
-          };
-          img.onerror = () => resolve(file);
-          img.src = src;
+        const img = new Image();
+        img.src = URL.createObjectURL(originalFile);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            URL.revokeObjectURL(img.src);
+            resolve(originalFile);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          ctx.globalAlpha = 0.25;
+          ctx.font = `bold ${img.width * 0.15}px Arial`;
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('RHC', canvas.width / 2, canvas.height / 2);
+          canvas.toBlob((b) => {
+            URL.revokeObjectURL(img.src);
+            resolve(b || originalFile);
+          }, 'image/jpeg', 0.9);
         };
-        reader.onerror = () => resolve(file);
-        reader.readAsDataURL(file);
+        img.onerror = () => {
+          URL.revokeObjectURL(img.src);
+          resolve(originalFile);
+        };
       });
 
-      // 4. Upload that blob to Supabase
+      // Upload watermarkedBlob to Supabase, NOT originalFile
       let secureUrl = '';
       try {
         secureUrl = await uploadImageToSupabaseStorage(watermarkedBlob, sku || 'rhc-prod', `angle-${index + 1}`);
@@ -425,21 +398,6 @@ export function ProductFourImagesUploader({
                       draggable={false}
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                     />
-
-                    {/* Crop-proof Center RHC Watermark in EXACT Center */}
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10"
-                      style={{
-                        color: '#9ca3af',
-                        opacity: 0.25,
-                        fontFamily: 'Arial, sans-serif',
-                        fontWeight: 'bold',
-                        fontSize: 'clamp(28px, 10vw, 52px)',
-                        letterSpacing: '0.05em'
-                      }}
-                    >
-                      RHC
-                    </div>
 
                     {/* Touch / Mouse Drag Handle Indicator */}
                     <div 

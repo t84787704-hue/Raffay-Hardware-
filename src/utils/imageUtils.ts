@@ -30,16 +30,8 @@ export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, h
 
   ctx.save();
   ctx.globalAlpha = 0.25;
-
-  // Exact requested styling: font = 'bold 120px Arial', fillStyle = '#9ca3af', center X,Y
-  if (width < 320 || height < 320) {
-    const scaledSize = Math.max(24, Math.round(Math.min(width, height) * 0.35));
-    ctx.font = `bold ${scaledSize}px Arial`;
-  } else {
-    ctx.font = 'bold 120px Arial';
-  }
-
-  ctx.fillStyle = '#9ca3af';
+  ctx.font = `bold ${width * 0.15}px Arial`;
+  ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('RHC', centerX, centerY);

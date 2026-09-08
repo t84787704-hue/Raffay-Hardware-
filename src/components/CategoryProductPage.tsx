@@ -426,21 +426,6 @@ export function CategoryProductPage({
                       loading="lazy"
                     />
 
-                    {/* Crop-proof Center RHC Watermark in EXACT Center */}
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10"
-                      style={{
-                        color: '#9ca3af',
-                        opacity: 0.25,
-                        fontFamily: 'Arial, sans-serif',
-                        fontWeight: 'bold',
-                        fontSize: 'clamp(36px, 12vw, 68px)',
-                        letterSpacing: '0.05em'
-                      }}
-                    >
-                      RHC
-                    </div>
-
                     {/* 4 VIEWS Badge on Bottom Left */}
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-[#E0C18B] text-[10px] font-bold pointer-events-none z-10">
                       {imagesCount > 1 ? `${imagesCount} VIEWS` : '4 VIEWS'}
