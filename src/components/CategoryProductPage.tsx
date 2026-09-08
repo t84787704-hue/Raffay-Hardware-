@@ -4,7 +4,12 @@ import {
   Search, 
   Layers, 
   ChevronRight,
-  Maximize2
+  Maximize2,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  CheckCircle2,
+  ArrowUpDown
 } from 'lucide-react';
 import { Category, ProductItem } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
@@ -29,10 +34,15 @@ export function CategoryProductPage({
 }: CategoryProductPageProps) {
   const { 
     categories, 
-    products
+    products,
+    reorderProducts
   } = useHardwareStore();
 
   const [localSearch, setLocalSearch] = useState('');
+  const [draggedProdIndex, setDraggedProdIndex] = useState<number | null>(null);
+  const [touchDragProdIndex, setTouchDragProdIndex] = useState<number | null>(null);
+  const [reorderStatusMsg, setReorderStatusMsg] = useState<string | null>(null);
+  const [isReorderMode, setIsReorderMode] = useState<boolean>(true);
 
   // 4-Images Gallery Modal
   const [galleryProduct, setGalleryProduct] = useState<ProductItem | null>(null);
@@ -51,6 +61,116 @@ export function CategoryProductPage({
       return !query || nameVal.toLowerCase().includes(query);
     });
   }, [categoryProducts, localSearch, parentSearchQuery]);
+
+  // Handle single-step Move Up (Opar) or Move Down (Niche)
+  const handleMoveProductStep = async (index: number, direction: 'prev' | 'next', e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const targetIndex = direction === 'prev' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categoryProducts.length) return;
+
+    const updatedCategoryProducts = [...categoryProducts];
+    const temp = updatedCategoryProducts[index];
+    updatedCategoryProducts[index] = updatedCategoryProducts[targetIndex];
+    updatedCategoryProducts[targetIndex] = temp;
+
+    // Merge with other products
+    const otherProducts = products.filter(p => !doesProductMatchCategory(p, category));
+    const allUpdated = [...updatedCategoryProducts, ...otherProducts];
+
+    try {
+      if (reorderProducts) {
+        await reorderProducts(allUpdated);
+      }
+      setReorderStatusMsg('✓ Product order updated & saved to Supabase!');
+      setTimeout(() => setReorderStatusMsg(null), 3500);
+    } catch (err: any) {
+      console.error('Failed to reorder products:', err);
+    }
+  };
+
+  // HTML5 Drag and Drop Handlers
+  const handleProductDragStart = (index: number, e: React.DragEvent) => {
+    setDraggedProdIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleProductDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleProductDrop = async (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedProdIndex === null || draggedProdIndex === targetIndex) {
+      setDraggedProdIndex(null);
+      return;
+    }
+
+    const updatedCategoryProducts = [...categoryProducts];
+    const [draggedItem] = updatedCategoryProducts.splice(draggedProdIndex, 1);
+    updatedCategoryProducts.splice(targetIndex, 0, draggedItem);
+
+    const otherProducts = products.filter(p => !doesProductMatchCategory(p, category));
+    const allUpdated = [...updatedCategoryProducts, ...otherProducts];
+
+    setDraggedProdIndex(null);
+    try {
+      if (reorderProducts) {
+        await reorderProducts(allUpdated);
+      }
+      setReorderStatusMsg('✓ Product order updated & saved to Supabase!');
+      setTimeout(() => setReorderStatusMsg(null), 3500);
+    } catch (err: any) {
+      console.error('Failed to reorder products:', err);
+    }
+  };
+
+  const handleProductDragEnd = () => {
+    setDraggedProdIndex(null);
+  };
+
+  // Touch Screen Drag Support for Mobile devices
+  const handleProductTouchStart = (index: number) => {
+    setTouchDragProdIndex(index);
+  };
+
+  const handleProductTouchEnd = async (e: React.TouchEvent) => {
+    if (touchDragProdIndex === null) return;
+    const touch = e.changedTouches[0];
+    if (touch) {
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = element?.closest('[data-product-card-index]');
+      if (targetCard) {
+        const targetIndexStr = targetCard.getAttribute('data-product-card-index');
+        if (targetIndexStr !== null) {
+          const targetIndex = parseInt(targetIndexStr, 10);
+          if (!isNaN(targetIndex) && targetIndex !== touchDragProdIndex && targetIndex >= 0 && targetIndex < categoryProducts.length) {
+            const updatedCategoryProducts = [...categoryProducts];
+            const [draggedItem] = updatedCategoryProducts.splice(touchDragProdIndex, 1);
+            updatedCategoryProducts.splice(targetIndex, 0, draggedItem);
+
+            const otherProducts = products.filter(p => !doesProductMatchCategory(p, category));
+            const allUpdated = [...updatedCategoryProducts, ...otherProducts];
+
+            try {
+              if (reorderProducts) {
+                await reorderProducts(allUpdated);
+              }
+              setReorderStatusMsg('✓ Product order updated & saved to Supabase!');
+              setTimeout(() => setReorderStatusMsg(null), 3500);
+            } catch (err: any) {
+              console.error('Failed to reorder products:', err);
+            }
+          }
+        }
+      }
+    }
+    setTouchDragProdIndex(null);
+  };
 
   return (
     <div id="category-product-page" className="min-h-screen bg-[#E8D5B7] text-[#1E2923] pb-20">
@@ -131,30 +251,64 @@ export function CategoryProductPage({
         </div>
 
         {/* 2. SEARCH BAR & SHOWING PRODUCTS COUNT (Directly below Main Pic / Title) */}
-        <div className="sticky top-[53px] z-10 p-3 sm:p-4 rounded-xl bg-[#DCC9A8] border border-[#C5B08F] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <input
-              id="category-search-input"
-              type="text"
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder={`Search in ${category.name}...`}
-              className="w-full pl-9 pr-8 py-2 rounded-lg bg-white border border-[#C5B08F] text-xs text-[#0A2E24] placeholder-gray-500 focus:outline-none focus:border-[#0A2E24] focus:ring-1 focus:ring-[#0A2E24]"
-            />
-            <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            {localSearch && (
+        <div className="sticky top-[53px] z-10 p-3 sm:p-4 rounded-xl bg-[#DCC9A8] border border-[#C5B08F] shadow-sm flex flex-col gap-2.5">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <input
+                id="category-search-input"
+                type="text"
+                value={localSearch}
+                onChange={(e) => setLocalSearch(e.target.value)}
+                placeholder={`Search in ${category.name}...`}
+                className="w-full pl-9 pr-8 py-2 rounded-lg bg-white border border-[#C5B08F] text-xs text-[#0A2E24] placeholder-gray-500 focus:outline-none focus:border-[#0A2E24] focus:ring-1 focus:ring-[#0A2E24]"
+              />
+              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              {localSearch && (
+                <button
+                  onClick={() => setLocalSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs cursor-pointer"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="text-xs text-[#0A2E24] font-bold">
+                Showing {filteredProducts.length} of {categoryProducts.length} products
+              </div>
+
               <button
-                onClick={() => setLocalSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs cursor-pointer"
+                type="button"
+                onClick={() => setIsReorderMode(!isReorderMode)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                  isReorderMode 
+                    ? 'bg-[#0A2E24] text-[#E0C18B] border-[#C8A165]' 
+                    : 'bg-white/80 text-[#0A2E24] border-[#C5B08F] hover:bg-white'
+                }`}
+                title="Toggle Up/Down Reorder Buttons & Drag Handles"
               >
-                &times;
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>{isReorderMode ? 'Reorder Enabled' : 'Reorder Products'}</span>
               </button>
-            )}
+            </div>
           </div>
 
-          <div className="text-xs text-[#0A2E24] font-bold">
-            Showing {filteredProducts.length} of {categoryProducts.length} products
-          </div>
+          {/* Reorder instruction banner & success message */}
+          {reorderStatusMsg && (
+            <div className="p-2.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+              <span>{reorderStatusMsg}</span>
+            </div>
+          )}
+
+          {isReorderMode && (
+            <div className="p-2 rounded-lg bg-[#FAF7F2] border border-[#C5B08F]/60 text-[#0A2E24] text-[11px] font-medium flex items-center justify-between gap-2 flex-wrap">
+              <span>
+                💡 <strong>Move Products:</strong> Tap <strong>↑ Move Up (اوپر)</strong> or <strong>↓ Move Down (نیچے)</strong> on any product card, or drag cards to reorder.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 3. PRODUCTS GRID */}
@@ -192,7 +346,7 @@ export function CategoryProductPage({
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
-            {filteredProducts.map((prod) => {
+            {filteredProducts.map((prod, index) => {
               const prodImg = (Array.isArray(prod.images) && prod.images.length > 0) 
                 ? prod.images[0] 
                 : (prod.image || prod.imageBase64 || (typeof prod.images === 'object' && prod.images ? (prod.images as any).front : ''));
@@ -203,22 +357,86 @@ export function CategoryProductPage({
                 <div
                   key={prod.id}
                   id={`product-card-${prod.id}`}
+                  data-product-card-index={index}
+                  draggable={isReorderMode}
+                  onDragStart={(e) => handleProductDragStart(index, e)}
+                  onDragOver={handleProductDragOver}
+                  onDrop={(e) => handleProductDrop(index, e)}
+                  onDragEnd={handleProductDragEnd}
                   onClick={() => setGalleryProduct(prod)}
-                  className="group rounded-2xl bg-[#DCC9A8] border border-[#C5B08F] hover:border-[#0A2E24] hover:shadow-lg transition-all duration-200 flex flex-col justify-between overflow-hidden text-left shadow-sm cursor-pointer relative"
+                  className={`group rounded-2xl bg-[#DCC9A8] border transition-all duration-200 flex flex-col justify-between overflow-hidden text-left shadow-sm cursor-pointer relative ${
+                    draggedProdIndex === index || touchDragProdIndex === index
+                      ? 'opacity-40 scale-95 border-[#0A2E24] ring-2 ring-[#0A2E24]'
+                      : 'border-[#C5B08F] hover:border-[#0A2E24] hover:shadow-lg'
+                  }`}
                 >
+                  {/* Reorder Buttons Bar at Top of Product Card */}
+                  {isReorderMode && (
+                    <div 
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-2 py-1.5 bg-[#0A2E24] text-[#E0C18B] border-b border-[#C8A165]/30 flex items-center justify-between gap-1 z-10"
+                    >
+                      {/* Position & Drag Grip */}
+                      <div 
+                        onTouchStart={() => handleProductTouchStart(index)}
+                        onTouchEnd={handleProductTouchEnd}
+                        className="flex items-center gap-1 cursor-grab active:cursor-grabbing text-white"
+                        title="Touch & drag to reorder"
+                      >
+                        <GripVertical className="w-3.5 h-3.5 text-[#C8A165]" />
+                        <span className="text-[10px] font-black bg-[#C8A165] text-[#0A2E24] px-1.5 py-0.2 rounded-md font-mono">
+                          #{index + 1}
+                        </span>
+                      </div>
+
+                      {/* Up (Opar) / Down (Niche) Buttons */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={(e) => handleMoveProductStep(index, 'prev', e)}
+                          title="Move Up / Previous (اوپر کریں)"
+                          className="px-1.5 py-0.5 rounded bg-white/20 hover:bg-white text-white hover:text-[#0A2E24] disabled:opacity-25 disabled:pointer-events-none text-[10px] font-bold flex items-center gap-0.5 cursor-pointer transition-colors"
+                        >
+                          <ArrowUp className="w-3 h-3" />
+                          <span>Up</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={index === filteredProducts.length - 1}
+                          onClick={(e) => handleMoveProductStep(index, 'next', e)}
+                          title="Move Down / Next (نیچے کریں)"
+                          className="px-1.5 py-0.5 rounded bg-white/20 hover:bg-white text-white hover:text-[#0A2E24] disabled:opacity-25 disabled:pointer-events-none text-[10px] font-bold flex items-center gap-0.5 cursor-pointer transition-colors"
+                        >
+                          <span>Down</span>
+                          <ArrowDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Single Solid Product Image Container (White Background) */}
                   <div className="relative w-full aspect-square bg-white flex items-center justify-center p-3 overflow-hidden border-b border-[#C5B08F]/60">
                     <img
                       src={formatImageSrc(prodImg, DEFAULT_FALLBACK_IMAGE)}
                       alt={prodDisplayName}
                       onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
-                      className="w-full h-full object-contain bg-white group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-contain bg-white group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                       loading="lazy"
                     />
 
-                    {/* 4 VIEWS Badge */}
-                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-[#E0C18B] text-[10px] font-bold">
+                    {/* 4 VIEWS Badge on Bottom Left */}
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-[#E0C18B] text-[10px] font-bold pointer-events-none z-10">
                       {imagesCount > 1 ? `${imagesCount} VIEWS` : '4 VIEWS'}
+                    </div>
+
+                    {/* RHC Watermark on Bottom Right (Bold 24px white text with black drop shadow) */}
+                    <div 
+                      className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[14px] font-black tracking-wider text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] pointer-events-none select-none z-10 font-sans"
+                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.8)' }}
+                    >
+                      RHC
                     </div>
                   </div>
 

@@ -33,13 +33,13 @@ interface HardwareStoreContextType {
   deleteCategory: (id: string) => Promise<void>;
   reorderCategories: (newOrderedList: Category[]) => Promise<void>;
   saveCategoriesOrder: (updatedCategories: Category[]) => Promise<void>;
-  resetCategories: () => void;
 
   // Products
   products: ProductItem[];
   addProduct: (product: Omit<ProductItem, 'id'> & { id?: string }) => Promise<ProductItem>;
   updateProduct: (id: string, updated: Partial<ProductItem>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  reorderProducts: (newOrderedList: ProductItem[]) => Promise<void>;
   resetProducts: () => void;
   cleanOldBase64Products: () => Promise<number>;
   isFirestoreSyncing: boolean;
@@ -94,6 +94,15 @@ const sortCategoryList = (list: Category[]): Category[] => {
     const orderB = typeof b.order === 'number' ? b.order : 9999;
     if (orderA !== orderB) return orderA - orderB;
     return (a.name || '').localeCompare(b.name || '');
+  });
+};
+
+const sortProductList = (list: ProductItem[]): ProductItem[] => {
+  return [...list].sort((a, b) => {
+    const orderA = typeof a.order === 'number' ? a.order : 9999;
+    const orderB = typeof b.order === 'number' ? b.order : 9999;
+    if (orderA !== orderB) return orderA - orderB;
+    return (a.name || a.productName || '').localeCompare(b.name || b.productName || '');
   });
 };
 
@@ -269,14 +278,14 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            return sortProductList(parsed);
           }
         }
       } catch (err) {
         console.warn('Failed to parse products from localStorage:', err);
       }
     }
-    return INITIAL_PRODUCTS;
+    return sortProductList(INITIAL_PRODUCTS);
   });
   const [isFirestoreSyncing, setIsFirestoreSyncing] = useState<boolean>(false);
   const [firestoreError, setFirestoreError] = useState<string | null>(null);
@@ -302,7 +311,32 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
         const validProducts = supabaseProducts.filter(p => !isJunk(p));
 
         if (validProducts.length > 0) {
-          setProducts(validProducts);
+          let savedLocalOrderMap: Record<string, number> = {};
+          try {
+            const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed)) {
+                parsed.forEach((item: ProductItem, idx: number) => {
+                  if (item && item.id) {
+                    savedLocalOrderMap[item.id] = typeof item.order === 'number' ? item.order : idx;
+                  }
+                });
+              }
+            }
+          } catch {}
+
+          const merged = validProducts.map((p, fallbackIdx) => {
+            if (typeof savedLocalOrderMap[p.id] === 'number') {
+              return { ...p, order: savedLocalOrderMap[p.id] };
+            }
+            if (typeof p.order === 'number') {
+              return p;
+            }
+            return { ...p, order: fallbackIdx };
+          });
+
+          setProducts(sortProductList(merged));
         }
       },
       (err: any) => {
@@ -555,13 +589,6 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     await reorderCategories(updatedCategories);
   }, [reorderCategories]);
 
-  const resetCategories = async () => {
-    const { data, error } = await supabase.from('categories').select('*').order('created_at', { ascending: true });
-    if (!error && data) {
-      setCategories(data);
-    }
-  };
-
   // Helper to verify admin permissions for mutations
   const verifyAdminPermission = (): boolean => {
     try {
@@ -696,6 +723,42 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn('[Supabase] Product deleted locally (Supabase sync deferred):', err);
     }
   }, [isRHCAdmin, adminUser]);
+
+  const reorderProducts = useCallback(async (newOrderedList: ProductItem[]) => {
+    // Assign order property based on index
+    const updatedWithOrder = newOrderedList.map((prod, index) => ({
+      ...prod,
+      order: index
+    }));
+
+    setProducts(prev => {
+      const updatedMap = new Map(updatedWithOrder.map(p => [p.id, p]));
+      const nextList = prev.map(p => updatedMap.get(p.id) || p);
+      const sorted = sortProductList(nextList);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(sorted));
+        }
+      } catch (e) {
+        console.warn('Failed to save reordered products:', e);
+      }
+      return sorted;
+    });
+
+    // Also update in Supabase if column exists
+    try {
+      for (const prod of updatedWithOrder) {
+        if (prod.id) {
+          await supabase
+            .from('products')
+            .update({ display_order: prod.order })
+            .eq('id', prod.id);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Supabase] reorderProducts sync note:', err?.message || err);
+    }
+  }, []);
 
   const resetProducts = useCallback(() => {
     console.log('[Supabase] Products are managed via Supabase');
@@ -946,12 +1009,12 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteCategory,
         reorderCategories,
         saveCategoriesOrder,
-        resetCategories,
 
         products,
         addProduct,
         updateProduct,
         deleteProduct,
+        reorderProducts,
         resetProducts,
         cleanOldBase64Products,
         isFirestoreSyncing,

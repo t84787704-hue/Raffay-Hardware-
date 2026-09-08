@@ -7,7 +7,13 @@ import {
   Link as LinkIcon, 
   Check, 
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  Star
 } from 'lucide-react';
 import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE, addWatermarkToImage } from '../../utils/imageUtils';
 import { uploadToCloudinary } from '../../lib/cloudinary';
@@ -38,6 +44,7 @@ export function ProductFourImagesUploader({
   const [urlModalIndex, setUrlModalIndex] = useState<number | null>(null);
   const [urlInputVal, setUrlInputVal] = useState('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
 
   // Refs for 4 file inputs
   const fileInputRefs = [
@@ -89,7 +96,44 @@ export function ProductFourImagesUploader({
     }
   };
 
-  // TASK 2: Drag and drop handlers to reorder images
+  // Move image left / up or right / down by step
+  const handleMoveStep = (index: number, direction: 'prev' | 'next', e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const targetIndex = direction === 'prev' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= 4) return;
+
+    const nextImages = [...currentImages];
+    while (nextImages.length < 4) nextImages.push('');
+
+    const temp = nextImages[index];
+    nextImages[index] = nextImages[targetIndex];
+    nextImages[targetIndex] = temp;
+
+    onChange(nextImages);
+  };
+
+  // Set any photo directly as 1st Main Thumbnail
+  const handleSetMainThumbnail = (index: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    if (index === 0) return;
+
+    const nextImages = [...currentImages];
+    while (nextImages.length < 4) nextImages.push('');
+
+    const [selected] = nextImages.splice(index, 1);
+    nextImages.unshift(selected);
+    if (nextImages.length > 4) nextImages.length = 4;
+
+    onChange(nextImages);
+  };
+
+  // Drag and drop handlers to reorder images
   const handleDragStart = (index: number, e: React.DragEvent) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -122,6 +166,35 @@ export function ProductFourImagesUploader({
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
+  };
+
+  // Mobile Touch Drag Support
+  const handleTouchStart = (index: number) => {
+    setTouchDragIndex(index);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchDragIndex === null) return;
+    const touch = e.changedTouches[0];
+    if (touch) {
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetBox = element?.closest('[data-image-box-index]');
+      if (targetBox) {
+        const targetIndexStr = targetBox.getAttribute('data-image-box-index');
+        if (targetIndexStr !== null) {
+          const targetIndex = parseInt(targetIndexStr, 10);
+          if (!isNaN(targetIndex) && targetIndex !== touchDragIndex && targetIndex >= 0 && targetIndex < 4) {
+            const nextImages = [...currentImages];
+            const [draggedItem] = nextImages.splice(touchDragIndex, 1);
+            nextImages.splice(targetIndex, 0, draggedItem);
+            while (nextImages.length < 4) nextImages.push('');
+            if (nextImages.length > 4) nextImages.length = 4;
+            onChange(nextImages);
+          }
+        }
+      }
+    }
+    setTouchDragIndex(null);
   };
 
   const handleRemoveImage = (index: number, e: React.MouseEvent) => {
@@ -193,13 +266,14 @@ export function ProductFourImagesUploader({
           return (
             <div
               key={box.index}
-              draggable={true}
-              onDragStart={(e) => handleDragStart(box.index, e)}
+              data-image-box-index={box.index}
+              draggable={hasImage}
+              onDragStart={(e) => hasImage && handleDragStart(box.index, e)}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(box.index, e)}
               onDragEnd={handleDragEnd}
-              className={`relative flex flex-col rounded-2xl border-2 transition-all overflow-hidden text-left bg-white cursor-grab active:cursor-grabbing ${
-                draggedIndex === box.index ? 'opacity-50 scale-95 border-[#C8A165]' : ''
+              className={`relative flex flex-col rounded-2xl border-2 transition-all overflow-hidden text-left bg-white ${
+                draggedIndex === box.index || touchDragIndex === box.index ? 'opacity-50 scale-95 border-[#C8A165] ring-2 ring-[#C8A165]' : ''
               } ${
                 hasImage
                   ? 'border-[#0A2E24] shadow-xs'
@@ -220,23 +294,52 @@ export function ProductFourImagesUploader({
 
               {/* Box Header Label */}
               <div className="px-2.5 py-1.5 bg-gray-50/90 border-b border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-1 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#C8A165] flex-shrink-0" />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${
+                    box.index === 0 ? 'bg-[#0A2E24] text-[#E0C18B]' : 'bg-gray-200 text-gray-700'
+                  }`}>
+                    {box.index + 1}
+                  </span>
                   <span className="text-[11px] font-bold text-[#0A2E24] truncate">
-                    {box.label}
+                    {box.index === 0 ? 'Main Thumbnail' : box.label.replace(' (Optional)', '')}
                   </span>
                 </div>
-                {box.required && (
+
+                {/* Quick Step Buttons in Header */}
+                {hasImage ? (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      disabled={box.index === 0}
+                      onClick={(e) => handleMoveStep(box.index, 'prev', e)}
+                      title="Move Up / Earlier (اوپر کریں)"
+                      className="px-1.5 py-0.5 rounded bg-white hover:bg-[#0A2E24] hover:text-white border border-gray-300 text-gray-700 disabled:opacity-25 disabled:pointer-events-none flex items-center gap-0.5 text-[10px] font-bold cursor-pointer transition-colors"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                      <span>Up</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={box.index === 3}
+                      onClick={(e) => handleMoveStep(box.index, 'next', e)}
+                      title="Move Down / Later (نیچے کریں)"
+                      className="px-1.5 py-0.5 rounded bg-white hover:bg-[#0A2E24] hover:text-white border border-gray-300 text-gray-700 disabled:opacity-25 disabled:pointer-events-none flex items-center gap-0.5 text-[10px] font-bold cursor-pointer transition-colors"
+                    >
+                      <span>Down</span>
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : box.required ? (
                   <span className="text-[9px] font-extrabold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200 flex-shrink-0">
                     Required
                   </span>
-                )}
+                ) : null}
               </div>
 
               {/* Box Image / Upload Trigger Area */}
               <div 
                 onClick={() => {
-                  if (!isCompressing && !disabled && draggedIndex === null) {
+                  if (!isCompressing && !disabled && draggedIndex === null && touchDragIndex === null) {
                     fileInputRefs[box.index].current?.click();
                   }
                 }}
@@ -257,6 +360,38 @@ export function ProductFourImagesUploader({
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                     />
 
+                    {/* RHC Watermark overlay in bottom-right corner (bold 24px semi-transparent white with black shadow) */}
+                    <div 
+                      className="absolute bottom-6 right-2 px-1 rounded text-[14px] font-black tracking-wider text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] pointer-events-none select-none z-10 font-sans"
+                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.95), -1px -1px 2px rgba(0,0,0,0.8)' }}
+                    >
+                      RHC
+                    </div>
+
+                    {/* Touch / Mouse Drag Handle Indicator */}
+                    <div 
+                      onTouchStart={() => handleTouchStart(box.index)}
+                      onTouchEnd={handleTouchEnd}
+                      title="Hold & drag to reorder"
+                      className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px] font-bold flex items-center gap-0.5 cursor-grab active:cursor-grabbing z-10"
+                    >
+                      <GripVertical className="w-3 h-3 text-[#C8A165]" />
+                      <span>Drag</span>
+                    </div>
+
+                    {/* Make Main Thumbnail Button if not index 0 */}
+                    {box.index !== 0 && (
+                      <button
+                        type="button"
+                        title="Set as 1st Main Thumbnail"
+                        onClick={(e) => handleSetMainThumbnail(box.index, e)}
+                        className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-[#0A2E24] hover:bg-[#124A3B] text-[#E0C18B] border border-[#C8A165] text-[9px] font-bold flex items-center gap-1 shadow-sm cursor-pointer z-10 transition-transform active:scale-95"
+                      >
+                        <Star className="w-2.5 h-2.5 fill-[#E0C18B]" />
+                        <span>Set Main</span>
+                      </button>
+                    )}
+
                     {/* Delete Icon (X) */}
                     <button
                       type="button"
@@ -269,7 +404,7 @@ export function ProductFourImagesUploader({
                     </button>
 
                     {/* Overlay on hover for Re-upload / Change */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-white">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-white pointer-events-none">
                       <Upload className="w-4 h-4 text-[#E0C18B]" />
                       <span className="text-[10px] font-bold">Change Photo</span>
                     </div>
@@ -289,21 +424,53 @@ export function ProductFourImagesUploader({
 
               {/* Box Footer / Paste URL toggle */}
               <div className="px-2 py-1 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between text-[10px]">
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => handleOpenUrlModal(box.index, e)}
-                  className="text-gray-500 hover:text-[#0A2E24] flex items-center gap-1 cursor-pointer font-medium"
-                >
-                  <LinkIcon className="w-2.5 h-2.5" />
-                  <span>{hasImage ? 'Edit URL' : 'Paste URL'}</span>
-                </button>
+                {hasImage ? (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={box.index === 0}
+                        onClick={(e) => handleMoveStep(box.index, 'prev', e)}
+                        className="px-1.5 py-0.5 rounded bg-white hover:bg-gray-100 border border-gray-300 text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-0.5 text-[9px] font-bold cursor-pointer"
+                        title="Move Up (اوپر)"
+                      >
+                        <ArrowUp className="w-2.5 h-2.5" />
+                        <span>Up</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={box.index === 3}
+                        onClick={(e) => handleMoveStep(box.index, 'next', e)}
+                        className="px-1.5 py-0.5 rounded bg-white hover:bg-gray-100 border border-gray-300 text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-0.5 text-[9px] font-bold cursor-pointer"
+                        title="Move Down (نیچے)"
+                      >
+                        <span>Down</span>
+                        <ArrowDown className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
 
-                {hasImage && (
-                  <span className="text-emerald-700 font-bold text-[9px] flex items-center gap-0.5" title={isExternalLink ? 'External Web URL' : `Compressed (${formatBytes(sizeBytes)})`}>
-                    <Check className="w-2.5 h-2.5" />
-                    <span>{isExternalLink ? 'URL' : formatBytes(sizeBytes)}</span>
-                  </span>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => handleOpenUrlModal(box.index, e)}
+                      className="text-gray-500 hover:text-[#0A2E24] flex items-center gap-1 cursor-pointer font-medium text-[9px]"
+                    >
+                      <LinkIcon className="w-2.5 h-2.5" />
+                      <span>URL</span>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => handleOpenUrlModal(box.index, e)}
+                      className="text-gray-500 hover:text-[#0A2E24] flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      <LinkIcon className="w-2.5 h-2.5" />
+                      <span>Paste URL</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>

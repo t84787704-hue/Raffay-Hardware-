@@ -215,6 +215,14 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                 )}
               </button>
 
+              {/* RHC Watermark text at bottom-right corner */}
+              <div
+                className="absolute bottom-11 right-3 px-2 py-0.5 rounded text-[16px] font-black tracking-widest text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] pointer-events-none select-none z-20 font-sans"
+                style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.95), -1px -1px 2px rgba(0,0,0,0.8)' }}
+              >
+                RHC
+              </div>
+
               {/* Mobile Swipe Hint */}
               <div className="absolute bottom-2.5 left-2.5 sm:hidden bg-black/60 text-white/80 text-[10px] px-2 py-0.5 rounded-md pointer-events-none">
                 Swipe &larr; &rarr;

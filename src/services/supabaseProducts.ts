@@ -86,6 +86,7 @@ export function mapSupabaseRowToProduct(row: SupabaseProductRow): ProductItem {
     inStock: stockNum > 0,
     isBestSeller: false,
     isNewArrival: true,
+    order: typeof row.display_order === 'number' ? row.display_order : (typeof row.order === 'number' ? row.order : undefined),
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.created_at || new Date().toISOString()
   };
