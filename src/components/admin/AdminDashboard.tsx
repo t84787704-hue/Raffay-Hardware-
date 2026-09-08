@@ -24,7 +24,10 @@ import {
   ChevronRight,
   Boxes,
   Maximize2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ArrowUp,
+  ArrowDown,
+  GripVertical
 } from 'lucide-react';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
 import { Category, ProductItem } from '../../types';
@@ -78,7 +81,8 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
     isFirestoreSyncing,
     firestoreError,
     adminUser, 
-    logout
+    logout,
+    reorderProducts
   } = useHardwareStore();
 
   // Active navigation tab in Admin
@@ -139,6 +143,22 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
     await reorderCategories(newCategoriesList);
 
     setReorderSuccessMessage(`Moved "${categoryItem.name}" ${direction}. Auto-saved.`);
+    setTimeout(() => setReorderSuccessMessage(null), 3000);
+  };
+
+  const handleMoveProductStep = async (prodId: string, direction: 'up' | 'down') => {
+    const currentIndex = products.findIndex((p) => p.id === prodId);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= products.length) return;
+
+    const prod = products[currentIndex];
+    const newProductsList = arrayMove(products, currentIndex, targetIndex);
+    if (reorderProducts) {
+      await reorderProducts(newProductsList);
+    }
+
+    setReorderSuccessMessage(`Display order updated for "${prod.name || prod.productName}". Auto-saved to Supabase.`);
     setTimeout(() => setReorderSuccessMessage(null), 3000);
   };
 
@@ -865,7 +885,8 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#0A2E24] text-white border-b border-[#C8A165]/30 uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="py-3.5 px-4 font-bold">Product (3-Angles)</th>
+                      <th className="py-3.5 px-3 font-bold w-16 text-center">Order</th>
+                      <th className="py-3.5 px-4 font-bold">Product (4-Angles)</th>
                       <th className="py-3.5 px-4 font-bold">Category & SKU</th>
                       <th className="py-3.5 px-4 font-bold">Wholesale Price (PKR)</th>
                       <th className="py-3.5 px-4 font-bold">MOQ & Packaging</th>
@@ -874,8 +895,60 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredProducts.map((prod) => (
-                      <tr key={prod.id} className="hover:bg-gray-50/80 transition-colors">
+                    {filteredProducts.map((prod) => {
+                      const prodIndex = products.findIndex((p) => p.id === prod.id);
+                      return (
+                      <tr 
+                        key={prod.id} 
+                        draggable={true}
+                        onDragStart={(e) => e.dataTransfer.setData("prodId", prod.id)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={async (e) => {
+                          e.preventDefault();
+                          const draggedId = e.dataTransfer.getData("prodId");
+                          if (!draggedId || draggedId === prod.id) return;
+                          const oldIdx = products.findIndex(p => p.id === draggedId);
+                          const newIdx = products.findIndex(p => p.id === prod.id);
+                          if (oldIdx !== -1 && newIdx !== -1) {
+                            const reordered = arrayMove(products, oldIdx, newIdx);
+                            if (reorderProducts) {
+                              await reorderProducts(reordered);
+                            }
+                            setReorderSuccessMessage(`Product order updated. Auto-saved to Supabase.`);
+                            setTimeout(() => setReorderSuccessMessage(null), 3000);
+                          }
+                        }}
+                        className="hover:bg-gray-50/80 transition-colors"
+                      >
+                        {/* Order & Reorder Handle */}
+                        <td className="py-3 px-2 text-center">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <div className="flex items-center gap-0.5 text-[10px] font-bold text-gray-500 cursor-grab active:cursor-grabbing" title="Drag row to reorder product">
+                              <GripVertical className="w-3 h-3 text-[#C8A165]" />
+                              <span>#{prodIndex !== -1 ? prodIndex + 1 : '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={prodIndex <= 0}
+                                onClick={() => handleMoveProductStep(prod.id, 'up')}
+                                title="Move Up (اوپر کریں)"
+                                className="p-1 rounded bg-gray-100 hover:bg-[#0A2E24] hover:text-white text-gray-700 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={prodIndex === -1 || prodIndex >= products.length - 1}
+                                onClick={() => handleMoveProductStep(prod.id, 'down')}
+                                title="Move Down (نیچے کریں)"
+                                className="p-1 rounded bg-gray-100 hover:bg-[#0A2E24] hover:text-white text-gray-700 disabled:opacity-20 disabled:pointer-events-none cursor-pointer transition-colors"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
                         
                         {/* 3-Images Thumbnails & Title */}
                         <td className="py-3 px-4">
@@ -989,7 +1062,8 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                         </td>
 
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>

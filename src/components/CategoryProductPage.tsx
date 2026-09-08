@@ -35,14 +35,15 @@ export function CategoryProductPage({
   const { 
     categories, 
     products,
-    reorderProducts
+    reorderProducts,
+    isAdmin
   } = useHardwareStore();
 
   const [localSearch, setLocalSearch] = useState('');
   const [draggedProdIndex, setDraggedProdIndex] = useState<number | null>(null);
   const [touchDragProdIndex, setTouchDragProdIndex] = useState<number | null>(null);
   const [reorderStatusMsg, setReorderStatusMsg] = useState<string | null>(null);
-  const [isReorderMode, setIsReorderMode] = useState<boolean>(true);
+  const [isReorderMode, setIsReorderMode] = useState<boolean>(false);
 
   // 4-Images Gallery Modal
   const [galleryProduct, setGalleryProduct] = useState<ProductItem | null>(null);
@@ -278,31 +279,33 @@ export function CategoryProductPage({
                 Showing {filteredProducts.length} of {categoryProducts.length} products
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsReorderMode(!isReorderMode)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border ${
-                  isReorderMode 
-                    ? 'bg-[#0A2E24] text-[#E0C18B] border-[#C8A165]' 
-                    : 'bg-white/80 text-[#0A2E24] border-[#C5B08F] hover:bg-white'
-                }`}
-                title="Toggle Up/Down Reorder Buttons & Drag Handles"
-              >
-                <ArrowUpDown className="w-3.5 h-3.5" />
-                <span>{isReorderMode ? 'Reorder Enabled' : 'Reorder Products'}</span>
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsReorderMode(!isReorderMode)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                    isReorderMode 
+                      ? 'bg-[#0A2E24] text-[#E0C18B] border-[#C8A165]' 
+                      : 'bg-white/80 text-[#0A2E24] border-[#C5B08F] hover:bg-white'
+                  }`}
+                  title="Admin Only: Toggle Product Reorder"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <span>{isReorderMode ? 'Reorder Enabled' : 'Reorder Products'}</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Reorder instruction banner & success message */}
-          {reorderStatusMsg && (
+          {/* Reorder instruction banner & success message (Admin Only) */}
+          {isAdmin && reorderStatusMsg && (
             <div className="p-2.5 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-700 flex-shrink-0" />
               <span>{reorderStatusMsg}</span>
             </div>
           )}
 
-          {isReorderMode && (
+          {isAdmin && isReorderMode && (
             <div className="p-2 rounded-lg bg-[#FAF7F2] border border-[#C5B08F]/60 text-[#0A2E24] text-[11px] font-medium flex items-center justify-between gap-2 flex-wrap">
               <span>
                 💡 <strong>Move Products:</strong> Tap <strong>↑ Move Up (اوپر)</strong> or <strong>↓ Move Down (نیچے)</strong> on any product card, or drag cards to reorder.
@@ -358,11 +361,11 @@ export function CategoryProductPage({
                   key={prod.id}
                   id={`product-card-${prod.id}`}
                   data-product-card-index={index}
-                  draggable={isReorderMode}
-                  onDragStart={(e) => handleProductDragStart(index, e)}
-                  onDragOver={handleProductDragOver}
-                  onDrop={(e) => handleProductDrop(index, e)}
-                  onDragEnd={handleProductDragEnd}
+                  draggable={Boolean(isAdmin && isReorderMode)}
+                  onDragStart={(e) => isAdmin && isReorderMode && handleProductDragStart(index, e)}
+                  onDragOver={(e) => isAdmin && isReorderMode ? handleProductDragOver(e) : undefined}
+                  onDrop={(e) => isAdmin && isReorderMode ? handleProductDrop(index, e) : undefined}
+                  onDragEnd={isAdmin && isReorderMode ? handleProductDragEnd : undefined}
                   onClick={() => setGalleryProduct(prod)}
                   className={`group rounded-2xl bg-[#DCC9A8] border transition-all duration-200 flex flex-col justify-between overflow-hidden text-left shadow-sm cursor-pointer relative ${
                     draggedProdIndex === index || touchDragProdIndex === index
@@ -370,8 +373,8 @@ export function CategoryProductPage({
                       : 'border-[#C5B08F] hover:border-[#0A2E24] hover:shadow-lg'
                   }`}
                 >
-                  {/* Reorder Buttons Bar at Top of Product Card */}
-                  {isReorderMode && (
+                  {/* Reorder Buttons Bar at Top of Product Card (Admin Only) */}
+                  {isAdmin && isReorderMode && (
                     <div 
                       onClick={(e) => e.stopPropagation()}
                       className="px-2 py-1.5 bg-[#0A2E24] text-[#E0C18B] border-b border-[#C8A165]/30 flex items-center justify-between gap-1 z-10"
