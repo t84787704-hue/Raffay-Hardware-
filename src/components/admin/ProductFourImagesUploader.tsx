@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE } from '../../utils/imageUtils';
 import { uploadToCloudinary } from '../../lib/cloudinary';
+import { uploadImageToSupabaseStorage } from '../../services/supabaseStorage';
 
 export interface ProductFourImagesUploaderProps {
   images: string[];
@@ -26,6 +27,71 @@ const IMAGE_BOX_LABELS = [
   { index: 3, label: 'Detail / Size View (Optional)', required: false, hint: 'Close-up texture, size specs & finish' }
 ];
 
+/**
+ * Adds a semi-transparent text watermark "RHC" at the bottom-right corner,
+ * white color with black shadow, font bold 24px using HTML5 Canvas.
+ */
+function addWatermarkToImage(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        // Draw original image
+        ctx.drawImage(img, 0, 0);
+
+        // Add semi-transparent text watermark "RHC" at bottom-right corner, white color with black shadow, font bold 24px
+        ctx.save();
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+
+        const padding = 16;
+        ctx.fillText('RHC', canvas.width - padding, canvas.height - padding);
+        ctx.restore();
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              resolve(file);
+            }
+          },
+          file.type || 'image/jpeg',
+          0.92
+        );
+      } catch (err) {
+        console.warn('[Watermark] Canvas processing note:', err);
+        resolve(file);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export function ProductFourImagesUploader({
   images,
   onChange,
@@ -36,6 +102,7 @@ export function ProductFourImagesUploader({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [urlModalIndex, setUrlModalIndex] = useState<number | null>(null);
   const [urlInputVal, setUrlInputVal] = useState('');
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Refs for 4 file inputs
   const fileInputRefs = [
@@ -61,8 +128,17 @@ export function ProductFourImagesUploader({
       setCompressingIndex(index);
       setErrorMsg(null);
 
-      // Upload directly to Cloudinary (or compressed fallback if credentials pending)
-      const secureUrl = await uploadToCloudinary(file);
+      // TASK 1: Add RHC Watermark on upload via canvas
+      const watermarkedBlob = await addWatermarkToImage(file);
+
+      // Upload watermarked blob keeping original upload logic
+      let secureUrl = '';
+      try {
+        secureUrl = await uploadToCloudinary(watermarkedBlob);
+      } catch (cloudErr) {
+        // Fallback to Supabase Storage if Cloudinary is not configured
+        secureUrl = await uploadImageToSupabaseStorage(watermarkedBlob, sku || 'rhc-prod', `angle-${index + 1}`);
+      }
 
       const nextImages = [...currentImages];
       nextImages[index] = secureUrl;
@@ -76,6 +152,41 @@ export function ProductFourImagesUploader({
         fileInputRefs[index].current!.value = '';
       }
     }
+  };
+
+  // TASK 2: Drag and drop handlers to reorder images
+  const handleDragStart = (index: number, e: React.DragEvent) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      return;
+    }
+
+    const nextImages = [...currentImages];
+    const [draggedItem] = nextImages.splice(draggedIndex, 1);
+    nextImages.splice(targetIndex, 0, draggedItem);
+
+    // Maintain 4 elements with index 0 as main thumbnail
+    while (nextImages.length < 4) nextImages.push('');
+    if (nextImages.length > 4) nextImages.length = 4;
+
+    onChange(nextImages);
+    setDraggedIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   const handleRemoveImage = (index: number, e: React.MouseEvent) => {
@@ -147,7 +258,14 @@ export function ProductFourImagesUploader({
           return (
             <div
               key={box.index}
-              className={`relative flex flex-col rounded-2xl border-2 transition-all overflow-hidden text-left bg-white ${
+              draggable={true}
+              onDragStart={(e) => handleDragStart(box.index, e)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(box.index, e)}
+              onDragEnd={handleDragEnd}
+              className={`relative flex flex-col rounded-2xl border-2 transition-all overflow-hidden text-left bg-white cursor-grab active:cursor-grabbing ${
+                draggedIndex === box.index ? 'opacity-50 scale-95 border-[#C8A165]' : ''
+              } ${
                 hasImage
                   ? 'border-[#0A2E24] shadow-xs'
                   : box.required
@@ -183,7 +301,7 @@ export function ProductFourImagesUploader({
               {/* Box Image / Upload Trigger Area */}
               <div 
                 onClick={() => {
-                  if (!isCompressing && !disabled) {
+                  if (!isCompressing && !disabled && draggedIndex === null) {
                     fileInputRefs[box.index].current?.click();
                   }
                 }}
@@ -193,20 +311,22 @@ export function ProductFourImagesUploader({
                   <div className="flex flex-col items-center justify-center text-center p-2 space-y-1.5">
                     <Loader2 className="w-6 h-6 text-[#C8A165] animate-spin" />
                     <span className="text-[10px] font-bold text-[#0A2E24]">Uploading...</span>
-                    <span className="text-[9px] text-gray-500 font-mono">Cloudinary CDN</span>
+                    <span className="text-[9px] text-gray-500 font-mono">Processing &amp; Upload</span>
                   </div>
                 ) : hasImage ? (
                   <>
                     <img
                       src={formatImageSrc(imgUrl, DEFAULT_FALLBACK_IMAGE)}
                       alt={box.label}
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                      draggable={false}
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                     />
 
                     {/* Delete Icon (X) */}
                     <button
                       type="button"
                       title="Remove image"
+                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => handleRemoveImage(box.index, e)}
                       className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-md transition-transform hover:scale-110 cursor-pointer z-10"
                     >
@@ -236,6 +356,7 @@ export function ProductFourImagesUploader({
               <div className="px-2 py-1 bg-gray-50/60 border-t border-gray-100 flex items-center justify-between text-[10px]">
                 <button
                   type="button"
+                  onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => handleOpenUrlModal(box.index, e)}
                   className="text-gray-500 hover:text-[#0A2E24] flex items-center gap-1 cursor-pointer font-medium"
                 >
