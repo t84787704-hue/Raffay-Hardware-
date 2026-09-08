@@ -27,8 +27,10 @@ import {
   Image as ImageIcon,
   ArrowUp,
   ArrowDown,
-  GripVertical
+  GripVertical,
+  Loader2
 } from 'lucide-react';
+import { migrateAllProductImagesWatermark, MigrationProgress } from '../../services/watermarkMigration';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
 import { Category, ProductItem } from '../../types';
 import { CategoryModal } from './CategoryModal';
@@ -163,6 +165,47 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
   };
 
   // Product Manager State
+  const [isFixingWatermarks, setIsFixingWatermarks] = useState(false);
+  const [watermarkProgress, setWatermarkProgress] = useState<MigrationProgress | null>(null);
+
+  const handleFixOldImagesWatermark = async () => {
+    if (isFixingWatermarks) return;
+    try {
+      setIsFixingWatermarks(true);
+      setWatermarkProgress({
+        current: 0,
+        total: 0,
+        message: 'Fetching all products from Supabase...',
+        isComplete: false
+      });
+
+      const result = await migrateAllProductImagesWatermark((progress) => {
+        setWatermarkProgress(progress);
+      });
+
+      setWatermarkProgress({
+        current: result.fixedImages,
+        total: result.totalImages,
+        message: `✓ Fixed ${result.fixedImages}/${result.totalImages} images with permanent RHC watermark!`,
+        isComplete: true
+      });
+
+      if (resetProducts) {
+        resetProducts();
+      }
+    } catch (err: any) {
+      console.error('Error during watermark migration:', err);
+      setWatermarkProgress({
+        current: 0,
+        total: 0,
+        message: `⚠️ Migration error: ${err?.message || 'Failed to complete migration'}`,
+        isComplete: true
+      });
+    } finally {
+      setIsFixingWatermarks(false);
+    }
+  };
+
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -808,6 +851,25 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                   </button>
 
                   <button
+                    id="btn-fix-old-images-watermark"
+                    disabled={isFixingWatermarks}
+                    onClick={handleFixOldImagesWatermark}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0A2E24] hover:bg-[#124A3B] text-[#E0C18B] text-xs font-bold transition-colors cursor-pointer border border-[#C8A165] disabled:opacity-50 shadow-sm"
+                    title="Scan all product images in Supabase and permanently burn centered RHC watermark"
+                  >
+                    {isFixingWatermarks ? (
+                      <Loader2 className="w-3.5 h-3.5 text-[#E0C18B] animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-[#E0C18B]" />
+                    )}
+                    <span>
+                      {isFixingWatermarks 
+                        ? (watermarkProgress?.message || 'Fixing Images...') 
+                        : 'Fix All Old Images - Add RHC Watermark'}
+                    </span>
+                  </button>
+
+                  <button
                     onClick={resetProducts}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition-colors cursor-pointer border border-gray-300"
                     title="Reset to default products"
@@ -836,6 +898,56 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                   <button type="button" onClick={() => setCleanMessage(null)} className="text-emerald-900 font-bold hover:underline">
                     Dismiss
                   </button>
+                </div>
+              )}
+
+              {watermarkProgress && (
+                <div 
+                  id="watermark-migration-status"
+                  className={`p-3.5 rounded-2xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-medium border shadow-sm ${
+                    watermarkProgress.isComplete 
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900' 
+                      : 'bg-amber-50 border-amber-300 text-amber-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    {watermarkProgress.isComplete ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    ) : (
+                      <Loader2 className="w-4 h-4 text-amber-600 animate-spin flex-shrink-0" />
+                    )}
+                    <div>
+                      <span className="font-bold text-sm">{watermarkProgress.message}</span>
+                      {watermarkProgress.total > 0 && !watermarkProgress.isComplete && (
+                        <span className="text-xs text-amber-700 ml-2">
+                          (Watermarking & overwriting in Supabase Storage...)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    {watermarkProgress.total > 0 && !watermarkProgress.isComplete && (
+                      <div className="w-full sm:w-48 bg-amber-200/80 rounded-full h-2.5 overflow-hidden border border-amber-300">
+                        <div 
+                          className="bg-[#0A2E24] h-2.5 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: `${Math.max(5, Math.min(100, Math.round((watermarkProgress.current / watermarkProgress.total) * 100)))}%` 
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {watermarkProgress.isComplete && (
+                      <button 
+                        type="button" 
+                        onClick={() => setWatermarkProgress(null)} 
+                        className="text-emerald-900 font-bold hover:underline text-xs"
+                      >
+                        Dismiss
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -5,6 +5,7 @@ import { INITIAL_PRODUCTS } from '../data/initialProducts';
 import { COMPANY_INFO } from '../data/hardwareData';
 import { 
   supabase,
+  getProductsFromSupabase,
   subscribeToProducts, 
   addProductToSupabase, 
   updateProductInSupabase, 
@@ -760,8 +761,16 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const resetProducts = useCallback(() => {
-    console.log('[Supabase] Products are managed via Supabase');
+  const resetProducts = useCallback(async () => {
+    console.log('[Supabase] Refreshing products from Supabase...');
+    try {
+      const prods = await getProductsFromSupabase();
+      if (prods && prods.length > 0) {
+        setProducts(sortProductList(prods));
+      }
+    } catch (e) {
+      console.warn('Error refreshing products from Supabase:', e);
+    }
   }, []);
 
   const cleanOldBase64Products = useCallback(async (): Promise<number> => {
