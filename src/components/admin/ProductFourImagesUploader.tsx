@@ -62,6 +62,40 @@ export function ProductFourImagesUploader({
     images[3] || ''
   ];
 
+  const setImages = onChange;
+
+  const addWatermark = (file: File | Blob): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          // Center watermark RHC
+          ctx.globalAlpha = 0.25;
+          ctx.font = `bold ${canvas.width * 0.15}px Arial`;
+          ctx.fillStyle = "white";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("RHC", canvas.width / 2, canvas.height / 2);
+          canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.9);
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageUpload = async (index: number, file: File) => {
     try {
       setCompressingIndex(index);
@@ -69,41 +103,8 @@ export function ProductFourImagesUploader({
 
       const originalFile = file;
 
-      // TASK 1: Permanent RHC Watermark (Burn into file)
-      // Load file to canvas, draw image
-      // Draw "RHC" in CENTER: ctx.globalAlpha=0.25, font=bold ${width*0.13}px Arial, white, centered at width/2, height/2
-      // Use canvas.toBlob() and upload THAT blob.
-      const watermarkedBlob = await new Promise<Blob>((resolve) => {
-        const img = new Image();
-        img.src = URL.createObjectURL(originalFile);
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            URL.revokeObjectURL(img.src);
-            resolve(originalFile);
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          ctx.globalAlpha = 0.25;
-          ctx.font = `bold ${Math.round(img.width * 0.13)}px Arial`;
-          ctx.fillStyle = 'white';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('RHC', canvas.width / 2, canvas.height / 2);
-          canvas.toBlob((b) => {
-            URL.revokeObjectURL(img.src);
-            resolve(b || originalFile);
-          }, 'image/jpeg', 0.9);
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(img.src);
-          resolve(originalFile);
-        };
-      });
-
+      // STEP 1 - PERMANENT WATERMARK: burn watermark into image file itself
+      const watermarkedBlob = await addWatermark(originalFile);
       // Upload watermarkedBlob to Supabase, NOT originalFile
       let secureUrl = '';
       try {
@@ -121,9 +122,9 @@ export function ProductFourImagesUploader({
         }
       }
 
-      const nextImages = [...currentImages];
-      nextImages[index] = secureUrl;
-      onChange(nextImages);
+      const newImages = [...currentImages];
+      newImages[index] = secureUrl;
+      setImages(newImages);
     } catch (err: any) {
       console.error(`[ProductFourImagesUploader] Image processing error for box #${index + 1}:`, err);
       setErrorMsg(`Failed to process image for Box ${index + 1}: ${err?.message || 'Error'}`);
@@ -313,14 +314,24 @@ export function ProductFourImagesUploader({
             <div
               key={box.index}
               data-image-box-index={box.index}
-              draggable={hasImage}
-              onDragStart={(e) => hasImage && handleDragStart(box.index, e)}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(box.index, e)}
-              onDragEnd={handleDragEnd}
+              draggable={true}
+              style={{ cursor: 'grab' }}
+              onDragStart={(e) => e.dataTransfer.setData("index", String(box.index))}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const fromStr = e.dataTransfer.getData("index");
+                if (fromStr === undefined || fromStr === null || fromStr === '') return;
+                const from = Number(fromStr);
+                if (isNaN(from) || from === box.index) return;
+                const newImages = [...currentImages];
+                const moved = newImages.splice(from, 1)[0];
+                newImages.splice(box.index, 0, moved);
+                while (newImages.length < 4) newImages.push('');
+                if (newImages.length > 4) newImages.length = 4;
+                setImages(newImages);
+              }}
               className={`relative flex flex-col rounded-2xl border-2 transition-all overflow-hidden text-left bg-white ${
-                draggedIndex === box.index || touchDragIndex === box.index ? 'opacity-50 scale-95 border-[#C8A165] ring-2 ring-[#C8A165]' : ''
-              } ${
                 hasImage
                   ? 'border-[#0A2E24] shadow-xs'
                   : box.required
@@ -403,10 +414,22 @@ export function ProductFourImagesUploader({
                       src={formatImageSrc(imgUrl, DEFAULT_FALLBACK_IMAGE)}
                       alt={box.label}
                       draggable={true}
-                      onDragStart={(e) => handleDragStart(box.index, e)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(box.index, e)}
-                      onDragEnd={handleDragEnd}
+                      style={{ cursor: 'grab' }}
+                      onDragStart={(e) => e.dataTransfer.setData("index", String(box.index))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const fromStr = e.dataTransfer.getData("index");
+                        if (fromStr === undefined || fromStr === null || fromStr === '') return;
+                        const from = Number(fromStr);
+                        if (isNaN(from) || from === box.index) return;
+                        const newImages = [...currentImages];
+                        const moved = newImages.splice(from, 1)[0];
+                        newImages.splice(box.index, 0, moved);
+                        while (newImages.length < 4) newImages.push('');
+                        if (newImages.length > 4) newImages.length = 4;
+                        setImages(newImages);
+                      }}
                       title="Drag to move anywhere (Reorder)"
                       className="w-full h-full object-contain cursor-grab active:cursor-grabbing select-none hover:scale-102 transition-transform"
                     />

@@ -11,44 +11,45 @@ import { uploadImageToSupabaseStorage } from '../../services/supabaseStorage';
  * - globalAlpha = 0.25
  * - RHC at (canvas.width / 2, canvas.height / 2)
  */
-export async function burnWatermarkIntoFile(originalFile: File): Promise<Blob> {
+export const addWatermark = (file: File | Blob): Promise<Blob> => {
   return new Promise((resolve) => {
-    const img = new Image();
-    img.src = URL.createObjectURL(originalFile);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        URL.revokeObjectURL(img.src);
-        resolve(originalFile);
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      ctx.globalAlpha = 0.25;
-      ctx.font = `bold ${img.width * 0.13}px Arial`;
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('RHC', canvas.width / 2, canvas.height / 2);
-      canvas.toBlob((b) => {
-        URL.revokeObjectURL(img.src);
-        resolve(b || originalFile);
-      }, 'image/jpeg', 0.9);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        // Center watermark RHC
+        ctx.globalAlpha = 0.25;
+        ctx.font = `bold ${canvas.width * 0.15}px Arial`;
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("RHC", canvas.width / 2, canvas.height / 2);
+        canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.9);
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target?.result as string;
     };
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      resolve(originalFile);
-    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
   });
-}
+};
+
+export const burnWatermarkIntoFile = addWatermark;
 
 /**
  * Uploads a watermarked product image to Supabase Storage
  */
 export async function uploadProductImageWithWatermark(file: File, sku = 'RHC-PROD', slot = 'main'): Promise<string> {
-  const watermarkedBlob = await burnWatermarkIntoFile(file);
+  const watermarkedBlob = await addWatermark(file);
   return uploadImageToSupabaseStorage(watermarkedBlob, sku, slot);
 }
 
