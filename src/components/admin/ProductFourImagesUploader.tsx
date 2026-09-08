@@ -426,6 +426,21 @@ export function ProductFourImagesUploader({
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                     />
 
+                    {/* Crop-proof Center RHC Watermark in EXACT Center */}
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10"
+                      style={{
+                        color: '#9ca3af',
+                        opacity: 0.25,
+                        fontFamily: 'Arial, sans-serif',
+                        fontWeight: 'bold',
+                        fontSize: 'clamp(28px, 10vw, 52px)',
+                        letterSpacing: '0.05em'
+                      }}
+                    >
+                      RHC
+                    </div>
+
                     {/* Touch / Mouse Drag Handle Indicator */}
                     <div 
                       onTouchStart={() => handleTouchStart(box.index)}
