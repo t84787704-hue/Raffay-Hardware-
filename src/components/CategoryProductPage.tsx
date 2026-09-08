@@ -430,14 +430,6 @@ export function CategoryProductPage({
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-[#E0C18B] text-[10px] font-bold pointer-events-none z-10">
                       {imagesCount > 1 ? `${imagesCount} VIEWS` : '4 VIEWS'}
                     </div>
-
-                    {/* RHC Watermark on Bottom Right (Bold 24px white text with black drop shadow) */}
-                    <div 
-                      className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[14px] font-black tracking-wider text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] pointer-events-none select-none z-10 font-sans"
-                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.8)' }}
-                    >
-                      RHC
-                    </div>
                   </div>
 
                   {/* Product Card Body: Product Name (Clean & Bold) */}

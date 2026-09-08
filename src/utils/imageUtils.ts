@@ -17,34 +17,32 @@ import type React from 'react';
  * at the bottom-right corner of the canvas. Font is bold and scaled to be clearly
  * visible and legible across any background color or image resolution (minimum 24px).
  */
+/**
+ * Draws "RHC" in EXACT center of canvas to be crop-proof and burned directly into file:
+ * - ctx.globalAlpha = 0.25
+ * - font = 'bold 120px Arial' (crop-proof center positioning)
+ * - fillStyle = '#9ca3af'
+ * - center X, Y
+ */
 export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-  const minDim = Math.min(width, height);
-  // Ensure font size is at least 24px, proportionally scaled for high-res images
-  const fontSize = Math.max(24, Math.round(minDim * 0.052));
-  const margin = Math.max(16, Math.round(fontSize * 0.6));
-
-  const x = width - margin;
-  const y = height - margin;
+  const centerX = width / 2;
+  const centerY = height / 2;
 
   ctx.save();
-  ctx.font = `bold ${fontSize}px Arial, sans-serif`;
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'bottom';
+  ctx.globalAlpha = 0.25;
 
-  // Black drop shadow for high contrast on dark & mid-tone backgrounds
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-  ctx.shadowBlur = Math.max(4, Math.round(fontSize * 0.16));
-  ctx.shadowOffsetX = Math.max(2, Math.round(fontSize * 0.06));
-  ctx.shadowOffsetY = Math.max(2, Math.round(fontSize * 0.06));
+  // Exact requested styling: font = 'bold 120px Arial', fillStyle = '#9ca3af', center X,Y
+  if (width < 320 || height < 320) {
+    const scaledSize = Math.max(24, Math.round(Math.min(width, height) * 0.35));
+    ctx.font = `bold ${scaledSize}px Arial`;
+  } else {
+    ctx.font = 'bold 120px Arial';
+  }
 
-  // Solid dark outline stroke to guarantee high contrast on pure white (#FFFFFF) backgrounds
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
-  ctx.lineWidth = Math.max(2.5, Math.round(fontSize * 0.08));
-  ctx.strokeText('RHC', x, y);
-
-  // High-legibility semi-transparent white text
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.fillText('RHC', x, y);
+  ctx.fillStyle = '#9ca3af';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RHC', centerX, centerY);
   ctx.restore();
 }
 

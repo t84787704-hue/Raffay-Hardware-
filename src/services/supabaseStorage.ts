@@ -35,29 +35,35 @@ export async function uploadImageToSupabaseStorage(
       return fileOrBase64;
     }
 
-    // Step 1: Compress in-browser to <=200KB Base64 JPEG
-    const compressedBase64 = await compressAndConvert(fileOrBase64);
+    let uploadBlob: Blob;
+    let fallbackBase64 = '';
 
-    // If compressedBase64 is an external URL, return directly
-    if (compressedBase64.startsWith('http://') || compressedBase64.startsWith('https://')) {
-      return compressedBase64;
+    if (fileOrBase64 instanceof Blob) {
+      uploadBlob = fileOrBase64;
+    } else if (typeof fileOrBase64 === 'string' && fileOrBase64.startsWith('data:')) {
+      fallbackBase64 = fileOrBase64;
+      uploadBlob = dataURLToBlob(fileOrBase64);
+    } else {
+      fallbackBase64 = await compressAndConvert(fileOrBase64);
+      uploadBlob = dataURLToBlob(fallbackBase64);
     }
 
     // If Supabase is not configured or in offline preview, retain high-efficiency compressed base64
     if (!isSupabaseConfigured) {
+      if (!fallbackBase64) {
+        fallbackBase64 = await compressAndConvert(uploadBlob);
+      }
       console.log(`[Supabase Storage] Supabase credentials pending. Saved compressed ${slotName} image locally (<=200KB).`);
-      return compressedBase64;
+      return fallbackBase64;
     }
 
-    // Step 2: Convert compressed base64 to Blob
-    const blob = dataURLToBlob(compressedBase64);
     const fileName = `${imageNamePrefix}_${slotName}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
     const filePath = `uploads/${fileName}`;
 
-    // Step 3: Upload to Supabase Storage 'product-images'
+    // Upload blob directly to Supabase Storage 'product-images'
     const { data, error } = await supabase.storage
       .from(SUPABASE_STORAGE_BUCKET)
-      .upload(filePath, blob, {
+      .upload(filePath, uploadBlob, {
         contentType: 'image/jpeg',
         cacheControl: '3600',
         upsert: true
@@ -65,8 +71,10 @@ export async function uploadImageToSupabaseStorage(
 
     if (error) {
       console.warn(`[Supabase Storage] Storage note for bucket "${SUPABASE_STORAGE_BUCKET}":`, error.message);
-      // If bucket doesn't exist or network error, return the compressed base64 (<=200KB) so image is still saved
-      return compressedBase64;
+      if (!fallbackBase64) {
+        fallbackBase64 = await compressAndConvert(uploadBlob);
+      }
+      return fallbackBase64;
     }
 
     // Step 4: Retrieve public URL
@@ -80,7 +88,10 @@ export async function uploadImageToSupabaseStorage(
       return publicUrl;
     }
 
-    return compressedBase64;
+    if (!fallbackBase64) {
+      fallbackBase64 = await compressAndConvert(uploadBlob);
+    }
+    return fallbackBase64;
   } catch (err: any) {
     console.warn('[Supabase Storage] Note on image processing:', err?.message || err);
     if (typeof fileOrBase64 === 'string') {

@@ -70,16 +70,82 @@ export function ProductFourImagesUploader({
       setCompressingIndex(index);
       setErrorMsg(null);
 
-      // TASK 1: Add RHC Watermark on upload via canvas
-      const watermarkedFile = await addWatermarkToImage(file);
+      // Crop-proof watermark burned directly into file:
+      // In upload function, use canvas, draw image, then draw "RHC" in EXACT center
+      // with ctx.globalAlpha = 0.25, font = 'bold 120px Arial', fillStyle = '#9ca3af', center X,Y.
+      // Then canvas.toBlob() and upload that blob to Supabase.
+      const watermarkedBlob = await new Promise<Blob>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (loadEvt) => {
+          const src = loadEvt.target?.result as string;
+          if (!src) return resolve(file);
 
-      // Upload watermarked file keeping original upload logic
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const width = img.naturalWidth || img.width || 800;
+              const height = img.naturalHeight || img.height || 600;
+
+              const canvas = document.createElement('canvas');
+              canvas.width = width;
+              canvas.height = height;
+
+              const ctx = canvas.getContext('2d');
+              if (!ctx) return resolve(file);
+
+              // 1. Draw image
+              ctx.drawImage(img, 0, 0, width, height);
+
+              // 2. Draw "RHC" in EXACT center with requested parameters
+              ctx.save();
+              ctx.globalAlpha = 0.25;
+              if (width < 320 || height < 320) {
+                const scaled = Math.max(24, Math.round(Math.min(width, height) * 0.35));
+                ctx.font = `bold ${scaled}px Arial`;
+              } else {
+                ctx.font = 'bold 120px Arial';
+              }
+              ctx.fillStyle = '#9ca3af';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('RHC', width / 2, height / 2);
+              ctx.restore();
+
+              // 3. canvas.toBlob()
+              canvas.toBlob(
+                (blob) => {
+                  if (blob) resolve(blob);
+                  else resolve(file);
+                },
+                'image/jpeg',
+                0.92
+              );
+            } catch {
+              resolve(file);
+            }
+          };
+          img.onerror = () => resolve(file);
+          img.src = src;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+      });
+
+      // 4. Upload that blob to Supabase
       let secureUrl = '';
       try {
-        secureUrl = await uploadToCloudinary(watermarkedFile);
+        secureUrl = await uploadImageToSupabaseStorage(watermarkedBlob, sku || 'rhc-prod', `angle-${index + 1}`);
       } catch (cloudErr) {
-        // Fallback to Supabase Storage if Cloudinary is not configured
-        secureUrl = await uploadImageToSupabaseStorage(watermarkedFile, sku || 'rhc-prod', `angle-${index + 1}`);
+        console.warn('Supabase storage upload notice:', cloudErr);
+      }
+
+      // Fallback if needed
+      if (!secureUrl) {
+        try {
+          secureUrl = await uploadToCloudinary(watermarkedBlob);
+        } catch {
+          secureUrl = await compressAndConvert(watermarkedBlob);
+        }
       }
 
       const nextImages = [...currentImages];
@@ -359,14 +425,6 @@ export function ProductFourImagesUploader({
                       draggable={false}
                       className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                     />
-
-                    {/* RHC Watermark overlay in bottom-right corner (bold 24px semi-transparent white with black shadow) */}
-                    <div 
-                      className="absolute bottom-6 right-2 px-1 rounded text-[14px] font-black tracking-wider text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] pointer-events-none select-none z-10 font-sans"
-                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.95), -1px -1px 2px rgba(0,0,0,0.8)' }}
-                    >
-                      RHC
-                    </div>
 
                     {/* Touch / Mouse Drag Handle Indicator */}
                     <div 
