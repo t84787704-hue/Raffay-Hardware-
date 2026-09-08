@@ -62,17 +62,17 @@ export function ProductFourImagesUploader({
     images[3] || ''
   ];
 
-  const handleFileSelected = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleImageUpload = async (index: number, file: File) => {
     try {
       setCompressingIndex(index);
       setErrorMsg(null);
 
       const originalFile = file;
 
-      // Burn watermark into file:
+      // TASK 1: Permanent RHC Watermark (Burn into file)
+      // Load file to canvas, draw image
+      // Draw "RHC" in CENTER: ctx.globalAlpha=0.25, font=bold ${width*0.13}px Arial, white, centered at width/2, height/2
+      // Use canvas.toBlob() and upload THAT blob.
       const watermarkedBlob = await new Promise<Blob>((resolve) => {
         const img = new Image();
         img.src = URL.createObjectURL(originalFile);
@@ -88,7 +88,7 @@ export function ProductFourImagesUploader({
           }
           ctx.drawImage(img, 0, 0);
           ctx.globalAlpha = 0.25;
-          ctx.font = `bold ${img.width * 0.15}px Arial`;
+          ctx.font = `bold ${Math.round(img.width * 0.13)}px Arial`;
           ctx.fillStyle = 'white';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -132,6 +132,13 @@ export function ProductFourImagesUploader({
       if (fileInputRefs[index].current) {
         fileInputRefs[index].current!.value = '';
       }
+    }
+  };
+
+  const handleFileSelected = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImageUpload(index, file);
     }
   };
 
@@ -377,12 +384,12 @@ export function ProductFourImagesUploader({
 
               {/* Box Image / Upload Trigger Area */}
               <div 
+                className="relative aspect-square w-full flex flex-col items-center justify-center p-2 bg-white overflow-hidden"
                 onClick={() => {
-                  if (!isCompressing && !disabled && draggedIndex === null && touchDragIndex === null) {
+                  if (!hasImage && !isCompressing && !disabled && draggedIndex === null && touchDragIndex === null) {
                     fileInputRefs[box.index].current?.click();
                   }
                 }}
-                className="relative aspect-square w-full flex flex-col items-center justify-center p-2 cursor-pointer group bg-white overflow-hidden"
               >
                 {isCompressing ? (
                   <div className="flex flex-col items-center justify-center text-center p-2 space-y-1.5">
@@ -395,8 +402,13 @@ export function ProductFourImagesUploader({
                     <img
                       src={formatImageSrc(imgUrl, DEFAULT_FALLBACK_IMAGE)}
                       alt={box.label}
-                      draggable={false}
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                      draggable={true}
+                      onDragStart={(e) => handleDragStart(box.index, e)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(box.index, e)}
+                      onDragEnd={handleDragEnd}
+                      title="Drag to move anywhere (Reorder)"
+                      className="w-full h-full object-contain cursor-grab active:cursor-grabbing select-none hover:scale-102 transition-transform"
                     />
 
                     {/* Touch / Mouse Drag Handle Indicator */}
@@ -404,7 +416,7 @@ export function ProductFourImagesUploader({
                       onTouchStart={() => handleTouchStart(box.index)}
                       onTouchEnd={handleTouchEnd}
                       title="Hold & drag to reorder"
-                      className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px] font-bold flex items-center gap-0.5 cursor-grab active:cursor-grabbing z-10"
+                      className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/75 text-white text-[9px] font-bold flex items-center gap-0.5 cursor-grab active:cursor-grabbing z-10 pointer-events-none"
                     >
                       <GripVertical className="w-3 h-3 text-[#C8A165]" />
                       <span>Drag</span>
@@ -434,14 +446,22 @@ export function ProductFourImagesUploader({
                       <X className="w-3.5 h-3.5" />
                     </button>
 
-                    {/* Overlay on hover for Re-upload / Change */}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-white pointer-events-none">
-                      <Upload className="w-4 h-4 text-[#E0C18B]" />
-                      <span className="text-[10px] font-bold">Change Photo</span>
-                    </div>
+                    {/* Change Photo Button */}
+                    <button
+                      type="button"
+                      title="Replace / Change this image"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRefs[box.index].current?.click();
+                      }}
+                      className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 hover:bg-black/90 text-[#E0C18B] text-[9px] font-bold flex items-center gap-1 cursor-pointer z-10"
+                    >
+                      <Upload className="w-2.5 h-2.5 text-[#E0C18B]" />
+                      <span>Change</span>
+                    </button>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center text-center p-2 space-y-1 text-gray-400 group-hover:text-[#0A2E24] transition-colors">
+                  <div className="flex flex-col items-center justify-center text-center p-2 space-y-1 text-gray-400 hover:text-[#0A2E24] transition-colors cursor-pointer">
                     <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#0A2E24]/10 flex items-center justify-center transition-colors">
                       <Camera className="w-5 h-5 text-gray-500 group-hover:text-[#0A2E24]" />
                     </div>

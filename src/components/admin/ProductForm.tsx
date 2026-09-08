@@ -27,7 +27,7 @@ export async function burnWatermarkIntoFile(originalFile: File): Promise<Blob> {
       }
       ctx.drawImage(img, 0, 0);
       ctx.globalAlpha = 0.25;
-      ctx.font = `bold ${img.width * 0.15}px Arial`;
+      ctx.font = `bold ${img.width * 0.13}px Arial`;
       ctx.fillStyle = 'white';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -51,6 +51,8 @@ export async function uploadProductImageWithWatermark(file: File, sku = 'RHC-PRO
   const watermarkedBlob = await burnWatermarkIntoFile(file);
   return uploadImageToSupabaseStorage(watermarkedBlob, sku, slot);
 }
+
+export const handleImageUpload = uploadProductImageWithWatermark;
 
 export const ProductForm = ProductModal;
 export default ProductForm;

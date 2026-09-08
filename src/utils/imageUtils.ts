@@ -30,7 +30,7 @@ export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, h
 
   ctx.save();
   ctx.globalAlpha = 0.25;
-  ctx.font = `bold ${width * 0.15}px Arial`;
+  ctx.font = `bold ${width * 0.13}px Arial`;
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
