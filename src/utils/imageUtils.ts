@@ -29,7 +29,7 @@ export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, h
   const centerY = height / 2;
 
   ctx.save();
-  ctx.globalAlpha = 0.30;
+  ctx.globalAlpha = 0.35;
   ctx.font = `bold ${width * 0.15}px Arial`;
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
@@ -39,10 +39,10 @@ export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, h
 }
 
 /**
- * Loads clean image into canvas, applies centered RHC watermark,
+ * Loads clean image into canvas, applies centered RHC watermark (alpha 0.35),
  * and triggers download of the watermarked file:
  * - Load clean image into canvas
- * - Set ctx.globalAlpha = 0.30
+ * - Set ctx.globalAlpha = 0.35
  * - Set ctx.fillStyle = "white"
  * - Set ctx.font = bold ${img.width * 0.15}px Arial
  * - Set textAlign = "center", textBaseline = "middle"
@@ -68,8 +68,8 @@ export async function downloadWithWatermark(imageUrl: string, filename?: string)
         // Draw clean image onto canvas
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // Center watermark RHC:
-        ctx.globalAlpha = 0.30;
+        // Center watermark RHC with 0.35 opacity:
+        ctx.globalAlpha = 0.35;
         ctx.fillStyle = 'white';
         ctx.font = `bold ${img.width * 0.15}px Arial`;
         ctx.textAlign = 'center';
@@ -152,87 +152,12 @@ function triggerDownloadLink(url: string, filename: string) {
 }
 
 /**
- * Processes an image File or Blob via HTML5 Canvas using a bulletproof FileReader
- * data URL pipeline and applies the RHC watermark at the bottom-right corner.
- * Returns a File ready for upload to Supabase or Cloudinary.
+ * Watermarking on upload is strictly disabled.
+ * Returns the original clean file as-is without modifying or burning any watermark.
  */
-export function addWatermarkToImage(file: File | Blob): Promise<File> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const src = e.target?.result as string;
-      if (!src) {
-        resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
-        return;
-      }
-
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const width = img.naturalWidth || img.width || 800;
-          const height = img.naturalHeight || img.height || 600;
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
-            return;
-          }
-
-          // Draw original image
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Apply RHC watermark
-          drawRHCWatermark(ctx, width, height);
-
-          canvas.toBlob(
-            (blob) => {
-              const fileName = (file as File).name || 'product_watermarked.jpg';
-              if (blob) {
-                resolve(new File([blob], fileName, { type: 'image/jpeg', lastModified: Date.now() }));
-              } else {
-                try {
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                  const arr = dataUrl.split(',');
-                  const bstr = atob(arr[1]);
-                  let n = bstr.length;
-                  const u8arr = new Uint8Array(n);
-                  while (n--) {
-                    u8arr[n] = bstr.charCodeAt(n);
-                  }
-                  resolve(new File([new Blob([u8arr], { type: 'image/jpeg' })], fileName, { type: 'image/jpeg' }));
-                } catch {
-                  resolve(file instanceof File ? file : new File([file], fileName, { type: 'image/jpeg' }));
-                }
-              }
-            },
-            'image/jpeg',
-            0.92
-          );
-        } catch (canvasErr) {
-          console.error('[addWatermarkToImage] Canvas processing notice:', canvasErr);
-          resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
-        }
-      };
-
-      img.onerror = (imgErr) => {
-        console.error('[addWatermarkToImage] Failed to decode image for watermarking:', imgErr);
-        resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
-      };
-
-      img.src = src;
-    };
-
-    reader.onerror = (readErr) => {
-      console.error('[addWatermarkToImage] FileReader error:', readErr);
-      resolve(file instanceof File ? file : new File([file], 'image.jpg', { type: 'image/jpeg' }));
-    };
-
-    reader.readAsDataURL(file);
-  });
+export async function addWatermarkToImage(file: File | Blob): Promise<File> {
+  if (file instanceof File) return file;
+  return new File([file], 'product_clean.jpg', { type: file.type || 'image/jpeg' });
 }
 
 /**

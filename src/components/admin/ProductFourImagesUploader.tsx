@@ -15,7 +15,7 @@ import {
   GripVertical,
   Star
 } from 'lucide-react';
-import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE, addWatermarkToImage } from '../../utils/imageUtils';
+import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE } from '../../utils/imageUtils';
 import { uploadToCloudinary } from '../../lib/cloudinary';
 import { uploadImageToSupabaseStorage } from '../../services/supabaseStorage';
 
@@ -63,38 +63,6 @@ export function ProductFourImagesUploader({
   ];
 
   const setImages = onChange;
-
-  const addWatermark = (file: File | Blob): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(file);
-            return;
-          }
-          ctx.drawImage(img, 0, 0);
-          // Center watermark RHC
-          ctx.globalAlpha = 0.30;
-          ctx.font = `bold ${img.width * 0.15}px Arial`;
-          ctx.fillStyle = "white";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("RHC", canvas.width / 2, canvas.height / 2);
-          canvas.toBlob((blob) => resolve(blob || file), 'image/jpeg', 0.9);
-        };
-        img.onerror = () => resolve(file);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve(file);
-      reader.readAsDataURL(file);
-    });
-  };
 
   const handleImageUpload = async (index: number, file: File) => {
     try {
