@@ -103,12 +103,10 @@ export function ProductFourImagesUploader({
 
       const originalFile = file;
 
-      // STEP 1 - PERMANENT WATERMARK: burn watermark into image file itself
-      const watermarkedBlob = await addWatermark(originalFile);
-      // Upload watermarkedBlob to Supabase, NOT originalFile
+      // Upload clean original image to Supabase as it is (DO NOT burn watermark on upload)
       let secureUrl = '';
       try {
-        secureUrl = await uploadImageToSupabaseStorage(watermarkedBlob, sku || 'rhc-prod', `angle-${index + 1}`);
+        secureUrl = await uploadImageToSupabaseStorage(originalFile, sku || 'rhc-prod', `angle-${index + 1}`);
       } catch (cloudErr) {
         console.warn('Supabase storage upload notice:', cloudErr);
       }
@@ -116,9 +114,9 @@ export function ProductFourImagesUploader({
       // Fallback if needed
       if (!secureUrl) {
         try {
-          secureUrl = await uploadToCloudinary(watermarkedBlob);
+          secureUrl = await uploadToCloudinary(originalFile);
         } catch {
-          secureUrl = await compressAndConvert(watermarkedBlob);
+          secureUrl = await compressAndConvert(originalFile);
         }
       }
 

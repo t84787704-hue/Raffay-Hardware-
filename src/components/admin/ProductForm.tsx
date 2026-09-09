@@ -49,8 +49,8 @@ export const burnWatermarkIntoFile = addWatermark;
  * Uploads a watermarked product image to Supabase Storage
  */
 export async function uploadProductImageWithWatermark(file: File, sku = 'RHC-PROD', slot = 'main'): Promise<string> {
-  const watermarkedBlob = await addWatermark(file);
-  return uploadImageToSupabaseStorage(watermarkedBlob, sku, slot);
+  // Upload clean original image to Supabase as it is (DO NOT burn watermark into uploaded image)
+  return uploadImageToSupabaseStorage(file, sku, slot);
 }
 
 export const handleImageUpload = uploadProductImageWithWatermark;

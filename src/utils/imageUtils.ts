@@ -29,13 +29,126 @@ export function drawRHCWatermark(ctx: CanvasRenderingContext2D, width: number, h
   const centerY = height / 2;
 
   ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.font = `bold ${width * 0.13}px Arial`;
+  ctx.globalAlpha = 0.30;
+  ctx.font = `bold ${width * 0.15}px Arial`;
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('RHC', centerX, centerY);
   ctx.restore();
+}
+
+/**
+ * Loads clean image into canvas, applies centered RHC watermark,
+ * and triggers download of the watermarked file:
+ * - Load clean image into canvas
+ * - Set ctx.globalAlpha = 0.30
+ * - Set ctx.fillStyle = "white"
+ * - Set ctx.font = bold ${img.width * 0.15}px Arial
+ * - Set textAlign = "center", textBaseline = "middle"
+ * - Draw text "RHC" at center canvas.width/2, canvas.height/2
+ * - Convert canvas to blob and trigger download
+ */
+export async function downloadWithWatermark(imageUrl: string, filename?: string): Promise<void> {
+  if (!imageUrl) return;
+
+  const defaultName = filename || `rhc-hardware-${Date.now()}.jpg`;
+
+  return new Promise<void>((resolve, reject) => {
+    const processImage = (img: HTMLImageElement) => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width || 800;
+        canvas.height = img.naturalHeight || img.height || 800;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Canvas 2D context not available');
+        }
+
+        // Draw clean image onto canvas
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Center watermark RHC:
+        ctx.globalAlpha = 0.30;
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${img.width * 0.15}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('RHC', canvas.width / 2, canvas.height / 2);
+
+        // Convert canvas to blob and trigger download
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            triggerDownloadLink(dataUrl, defaultName);
+            resolve();
+            return;
+          }
+          const blobUrl = URL.createObjectURL(blob);
+          triggerDownloadLink(blobUrl, defaultName);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+          resolve();
+        }, 'image/jpeg', 0.92);
+      } catch (err) {
+        console.error('[downloadWithWatermark] Canvas notice:', err);
+        triggerDownloadLink(imageUrl, defaultName);
+        resolve();
+      }
+    };
+
+    if (imageUrl.startsWith('data:')) {
+      const img = new Image();
+      img.onload = () => processImage(img);
+      img.onerror = (e) => reject(e);
+      img.src = imageUrl;
+      return;
+    }
+
+    // Fetch as Blob first to bypass canvas tainting
+    fetch(imageUrl, { mode: 'cors' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          processImage(img);
+          URL.revokeObjectURL(objectUrl);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          fallbackLoadImage();
+        };
+        img.src = objectUrl;
+      })
+      .catch(() => {
+        fallbackLoadImage();
+      });
+
+    function fallbackLoadImage() {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => processImage(img);
+      img.onerror = () => {
+        const plainImg = new Image();
+        plainImg.onload = () => processImage(plainImg);
+        plainImg.onerror = (e) => reject(e);
+        plainImg.src = imageUrl;
+      };
+      img.src = imageUrl;
+    }
+  });
+}
+
+function triggerDownloadLink(url: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /**

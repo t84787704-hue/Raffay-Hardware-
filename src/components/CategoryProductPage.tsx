@@ -14,7 +14,7 @@ import {
 import { Category, ProductItem } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
 import { Product3ImagesGalleryModal } from './Product3ImagesGalleryModal';
-import { formatImageSrc, handleImageError, doesProductMatchCategory, DEFAULT_FALLBACK_IMAGE } from '../utils/imageUtils';
+import { formatImageSrc, handleImageError, doesProductMatchCategory, DEFAULT_FALLBACK_IMAGE, downloadWithWatermark } from '../utils/imageUtils';
 
 interface CategoryProductPageProps {
   category: Category;
@@ -420,7 +420,15 @@ export function CategoryProductPage({
                   )}
 
                   {/* Single Solid Product Image Container (White Background) */}
-                  <div className="relative w-full aspect-square bg-white flex items-center justify-center p-3 overflow-hidden border-b border-[#C5B08F]/60">
+                  <div 
+                    className="relative w-full aspect-square bg-white flex items-center justify-center p-3 overflow-hidden border-b border-[#C5B08F]/60"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      const safeTitle = (prodDisplayName || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-');
+                      downloadWithWatermark(formatImageSrc(prodImg, DEFAULT_FALLBACK_IMAGE), `${safeTitle}.jpg`);
+                    }}
+                    title="Right-click to download image with RHC watermark"
+                  >
                     <img
                       src={formatImageSrc(prodImg, DEFAULT_FALLBACK_IMAGE)}
                       alt={prodDisplayName}

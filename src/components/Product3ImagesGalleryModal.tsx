@@ -6,10 +6,13 @@ import {
   ChevronRight,
   ZoomIn,
   ZoomOut,
-  ArrowLeft
+  ArrowLeft,
+  Download,
+  Check,
+  Loader2
 } from 'lucide-react';
 import { ProductItem } from '../types';
-import { formatImageSrc, handleImageError, DEFAULT_FALLBACK_IMAGE } from '../utils/imageUtils';
+import { formatImageSrc, handleImageError, DEFAULT_FALLBACK_IMAGE, downloadWithWatermark } from '../utils/imageUtils';
 
 interface Product3ImagesGalleryModalProps {
   product: ProductItem | null;
@@ -26,6 +29,8 @@ const VIEW_LABELS = [
 export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesGalleryModalProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
@@ -33,6 +38,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
   useEffect(() => {
     setSelectedIndex(0);
     setIsZoomed(false);
+    setDownloadNotice(null);
   }, [product?.id]);
 
   if (!product) return null;
@@ -62,6 +68,27 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
   // Format all images
   const imagesList = rawImages.map((img) => formatImageSrc(img, DEFAULT_FALLBACK_IMAGE));
   const activeImage = imagesList[selectedIndex] || imagesList[0] || DEFAULT_FALLBACK_IMAGE;
+
+  const prodName = product.productName || product.name || 'Hardware Product';
+  const catName = product.categoryName || product.category || 'Hardware';
+
+  const handleDownloadImage = async (customImg?: string, customName?: string) => {
+    const targetImg = customImg || activeImage;
+    if (!targetImg || isDownloading) return;
+
+    try {
+      setIsDownloading(true);
+      const safeTitle = (prodName || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const filename = customName || `${safeTitle}-view-${selectedIndex + 1}.jpg`;
+      await downloadWithWatermark(targetImg, filename);
+      setDownloadNotice('Downloaded with RHC Watermark');
+      setTimeout(() => setDownloadNotice(null), 3500);
+    } catch (err) {
+      console.error('Failed to download image with watermark:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleNext = () => {
     setSelectedIndex((prev) => (prev + 1) % imagesList.length);
@@ -96,9 +123,6 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
     touchStartX.current = null;
     touchEndX.current = null;
   };
-
-  const prodName = product.productName || product.name || 'Hardware Product';
-  const catName = product.categoryName || product.category || 'Hardware';
 
   return (
     <div 
@@ -156,6 +180,10 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                handleDownloadImage();
+              }}
             >
               <img
                 src={activeImage}
@@ -165,7 +193,30 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                   isZoomed ? 'scale-175 cursor-zoom-out z-10' : 'group-hover:scale-105 cursor-zoom-in'
                 }`}
                 onClick={() => setIsZoomed(!isZoomed)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  handleDownloadImage();
+                }}
               />
+
+              {/* Quick Download Button (top-right overlay) */}
+              <button
+                type="button"
+                disabled={isDownloading}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownloadImage();
+                }}
+                className="absolute top-2.5 right-2.5 bg-[#0A2E24]/85 hover:bg-[#0A2E24] text-[#E0C18B] px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1.5 backdrop-blur-sm transition-all cursor-pointer z-20 shadow-md border border-[#C8A165]/50 disabled:opacity-50"
+                title="Download image with RHC watermark"
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-3.5 h-3.5 text-[#C8A165] animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5 text-[#C8A165]" />
+                )}
+                <span className="font-bold">Download</span>
+              </button>
 
               {/* Prev & Next Arrow Buttons */}
               {imagesList.length > 1 && (
@@ -247,6 +298,11 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                       setSelectedIndex(idx);
                       setIsZoomed(false);
                     }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      handleDownloadImage(img, `${(prodName || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-')}-view-${idx + 1}.jpg`);
+                    }}
+                    title={`${label} (Right-click to download watermarked)`}
                     className={`relative aspect-square rounded-xl overflow-hidden p-1 transition-all cursor-pointer bg-white border-2 flex flex-col items-center justify-center ${
                       isActive
                         ? 'border-[#C8A165] ring-2 ring-[#C8A165] shadow-lg scale-102'
@@ -287,17 +343,40 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
             </h2>
 
             {/* Action Buttons */}
-            <div className="pt-2">
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                id="btn-download-product-image"
+                disabled={isDownloading}
+                onClick={() => handleDownloadImage()}
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-[#0A2E24] text-[#E0C18B] border-2 border-[#C8A165] hover:bg-[#124A3B] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                title="Download this image with official RHC watermark"
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-4 h-4 text-[#C8A165] animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-[#C8A165]" />
+                )}
+                <span>{isDownloading ? 'Preparing Image...' : 'Download Image'}</span>
+              </button>
+
               <button
                 type="button"
                 id="btn-back-to-products"
                 onClick={onClose}
-                className="w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-[#0A2E24] text-[#E0C18B] border border-[#C8A165] hover:bg-[#124A3B] transition-all cursor-pointer shadow-sm"
+                className="sm:w-auto px-5 py-3 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-[#FAF7F2] text-[#0A2E24] border border-[#C5B08F] hover:bg-gray-100 transition-all cursor-pointer shadow-xs"
               >
-                <ArrowLeft className="w-4 h-4 text-[#C8A165]" />
-                <span>Back to Products</span>
+                <ArrowLeft className="w-4 h-4 text-[#0A2E24]" />
+                <span>Back</span>
               </button>
             </div>
+
+            {downloadNotice && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center justify-center gap-2 animate-fade-in">
+                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{downloadNotice}</span>
+              </div>
+            )}
 
           </div>
 

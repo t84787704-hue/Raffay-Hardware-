@@ -4,7 +4,7 @@ import { ProductItem } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
 import { Product3ImagesGalleryModal } from './Product3ImagesGalleryModal';
-import { formatImageSrc, handleImageError, doesProductMatchCategory, DEFAULT_FALLBACK_IMAGE } from '../utils/imageUtils';
+import { formatImageSrc, handleImageError, doesProductMatchCategory, DEFAULT_FALLBACK_IMAGE, downloadWithWatermark } from '../utils/imageUtils';
 
 interface ProductCatalogProps {
   selectedCategory: string;
@@ -143,6 +143,12 @@ export function ProductCatalog({
                       overflow: 'hidden',
                       padding: '4px'
                     }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      const safeTitle = (prod.productName || prod.name || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-');
+                      downloadWithWatermark(formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE), `${safeTitle}.jpg`);
+                    }}
+                    title="Right-click to download image with RHC watermark"
                     className="flex items-center justify-center shadow-inner"
                   >
                     <img
@@ -153,6 +159,11 @@ export function ProductCatalog({
                         width: '100%',
                         height: '100%',
                         objectFit: 'contain'
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        const safeTitle = (prod.productName || prod.name || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-');
+                        downloadWithWatermark(formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE), `${safeTitle}.jpg`);
                       }}
                       className="rounded-md bg-white block"
                       loading="lazy"
