@@ -657,6 +657,8 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
       stockCount: prod.stockCount !== undefined ? prod.stockCount : 100,
       isBestSeller: Boolean(prod.isBestSeller),
       isNewArrival: Boolean(prod.isNewArrival),
+      is_featured: Boolean((prod as any).is_featured ?? (prod as any).isFeatured ?? false),
+      isFeatured: Boolean((prod as any).is_featured ?? (prod as any).isFeatured ?? false),
       image_main: (prod as any).image_main || rawImage,
       image_side: (prod as any).image_side,
       image_back: (prod as any).image_back,
@@ -679,7 +681,8 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
         images: newProduct.images as string[],
         price: newProduct.price,
         description: newProduct.description,
-        stock: newProduct.stock
+        stock: newProduct.stock,
+        is_featured: newProduct.is_featured
       });
       if (createdProd && createdProd.id && createdProd.id !== localId) {
         newProduct.id = createdProd.id;
@@ -698,11 +701,17 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Admin login required");
     }
 
+    const updatedWithFeatured: Partial<ProductItem> = {
+      ...updated,
+      ...(updated.is_featured !== undefined ? { isFeatured: Boolean(updated.is_featured) } : {}),
+      ...(updated.isFeatured !== undefined ? { is_featured: Boolean(updated.isFeatured) } : {})
+    };
+
     // Update local state immediately
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedWithFeatured } : p));
 
     try {
-      await updateProductInSupabase(id, updated);
+      await updateProductInSupabase(id, updatedWithFeatured);
     } catch (err) {
       console.warn('[Supabase] Product updated locally (Supabase sync deferred):', err);
     }

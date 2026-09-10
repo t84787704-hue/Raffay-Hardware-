@@ -56,6 +56,8 @@ export interface ProductItem {
   inStock?: boolean;
   isBestSeller?: boolean;
   isNewArrival?: boolean;
+  is_featured?: boolean;
+  isFeatured?: boolean;
   createdAt?: any;
   updatedAt?: any;
 }

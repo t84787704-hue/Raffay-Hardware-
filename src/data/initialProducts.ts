@@ -24,7 +24,9 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
     tags: ['Bearing Lock', 'Anti-Friction', 'Heavy Mortise', 'Computer Key'],
     inStock: true,
     stockCount: 450,
-    isBestSeller: true
+    isBestSeller: true,
+    is_featured: true,
+    isFeatured: true
   },
   {
     id: 'p2',
@@ -49,7 +51,9 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
     tags: ['Full Die Cast', 'Solid Alloy', 'Zero Porosity', 'Gunmetal'],
     inStock: true,
     stockCount: 620,
-    isBestSeller: true
+    isBestSeller: true,
+    is_featured: true,
+    isFeatured: true
   },
   {
     id: 'p3',
@@ -74,7 +78,9 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
     tags: ['Metal Die Cast', 'Pivot Hinge', '3D Adjustable', 'Concealed'],
     inStock: true,
     stockCount: 850,
-    isNewArrival: true
+    isNewArrival: true,
+    is_featured: true,
+    isFeatured: true
   },
   {
     id: 'p4',
@@ -99,7 +105,9 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
     tags: ['Solid Brass', 'Grand Pull Handle', 'Imperial Design', 'Luxury Villa'],
     inStock: true,
     stockCount: 120,
-    isBestSeller: true
+    isBestSeller: true,
+    is_featured: true,
+    isFeatured: true
   },
   {
     id: 'p5',
@@ -124,7 +132,9 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
     tags: ['Kitchen Accessories', 'Magic Corner', 'SUS 304', 'Soft Close'],
     inStock: true,
     stockCount: 75,
-    isNewArrival: true
+    isNewArrival: true,
+    is_featured: true,
+    isFeatured: true
   },
   {
     id: 'p6',

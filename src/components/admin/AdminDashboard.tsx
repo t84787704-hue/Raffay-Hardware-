@@ -28,7 +28,8 @@ import {
   ArrowUp,
   ArrowDown,
   GripVertical,
-  Loader2
+  Loader2,
+  Star
 } from 'lucide-react';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
 import { Category, ProductItem } from '../../types';
@@ -258,6 +259,30 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
       } catch (err) {
         console.error('[Supabase] Error in handleConfirmDeleteProduct:', err);
       }
+    }
+  };
+
+  // Count currently featured products in catalog
+  const featuredCount = useMemo(() => {
+    return products.filter(p => Boolean(p.is_featured || p.isFeatured)).length;
+  }, [products]);
+
+  // Quick toggle featured status directly from table row
+  const handleToggleFeaturedProduct = async (prod: ProductItem) => {
+    const isCurrentFeatured = Boolean(prod.is_featured || prod.isFeatured);
+    if (!isCurrentFeatured) {
+      if (featuredCount >= 12) {
+        alert("Max 12 featured products allowed, pehle koi ek hatayein");
+        return;
+      }
+    }
+    try {
+      await updateProduct(prod.id, {
+        is_featured: !isCurrentFeatured,
+        isFeatured: !isCurrentFeatured
+      });
+    } catch (err) {
+      console.warn('[Featured Toggle] Notice:', err);
     }
   };
 
@@ -569,7 +594,12 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                           className="w-12 h-12 rounded-xl object-cover border border-gray-200 flex-shrink-0" 
                         />
                         <div className="min-w-0">
-                          <h4 className="font-bold text-xs text-[#0A2E24] truncate">{prod.name}</h4>
+                          <div className="flex items-center gap-1.5">
+                            {Boolean(prod.is_featured || prod.isFeatured) && (
+                              <Star className="w-3 h-3 fill-[#C8A165] text-[#C8A165] flex-shrink-0" />
+                            )}
+                            <h4 className="font-bold text-xs text-[#0A2E24] truncate">{prod.name}</h4>
+                          </div>
                           <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
                             <span className="font-mono font-bold text-gray-700">{prod.sku}</span>
                             <span>&bull;</span>
@@ -771,12 +801,27 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
             <div className="p-4 sm:p-5 rounded-3xl bg-white border border-gray-200 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="font-cinzel text-xl font-bold text-[#0A2E24] flex items-center gap-2">
-                    <Package className="w-5 h-5 text-[#C8A165]" />
-                    <span>Product Catalog Manager ({filteredProducts.length} Products)</span>
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="font-cinzel text-xl font-bold text-[#0A2E24] flex items-center gap-2">
+                      <Package className="w-5 h-5 text-[#C8A165]" />
+                      <span>Product Catalog Manager ({filteredProducts.length} Products)</span>
+                    </h2>
+
+                    {/* Featured Selected Badge */}
+                    <div 
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-sm transition-all ${
+                        featuredCount >= 12
+                          ? 'bg-amber-100 border-amber-400 text-amber-900'
+                          : 'bg-[#0A2E24] border-[#C8A165] text-[#E0C18B]'
+                      }`}
+                      title="Items selected for Featured Carousel on Home Page (Max 12)"
+                    >
+                      <Star className="w-3.5 h-3.5 fill-[#C8A165] text-[#C8A165]" />
+                      <span>Featured Selected: {featuredCount}/12</span>
+                    </div>
+                  </div>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Each product includes SKU, Wholesale Price, and 3 high-res angles (Front, Side, Installed View).
+                    Each product includes SKU, Wholesale Price, and 4 high-res angles. Click ⭐ to toggle featured carousel placement.
                   </p>
                 </div>
 
@@ -974,9 +1019,22 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                             </div>
 
                             <div className="min-w-0">
-                              <h4 className="font-bold text-gray-900 text-xs line-clamp-1">{prod.name}</h4>
+                              <div className="flex items-center gap-1.5">
+                                {Boolean(prod.is_featured || prod.isFeatured) && (
+                                  <span title="⭐ Featured Product (Main Page Carousel)">
+                                    <Star className="w-3.5 h-3.5 fill-[#C8A165] text-[#C8A165] flex-shrink-0" />
+                                  </span>
+                                )}
+                                <h4 className="font-bold text-gray-900 text-xs line-clamp-1">{prod.name}</h4>
+                              </div>
                               <p className="text-[10px] text-gray-500 truncate max-w-xs">{prod.description}</p>
                               <div className="flex items-center gap-1 mt-1">
+                                {Boolean(prod.is_featured || prod.isFeatured) && (
+                                  <span className="text-[9px] font-extrabold bg-[#0A2E24] text-[#E0C18B] border border-[#C8A165]/60 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <Star className="w-2.5 h-2.5 fill-[#C8A165] text-[#C8A165]" />
+                                    FEATURED
+                                  </span>
+                                )}
                                 {prod.isBestSeller && (
                                   <span className="text-[9px] font-extrabold bg-[#0A2E24] text-[#E0C18B] px-1.5 py-0.2 rounded">
                                     BESTSELLER
@@ -1029,6 +1087,24 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                         {/* Actions */}
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Quick Toggle Featured */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeaturedProduct(prod)}
+                              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                                Boolean(prod.is_featured || prod.isFeatured)
+                                  ? 'bg-[#0A2E24] border-[#C8A165] text-[#C8A165] hover:bg-[#124A3B]'
+                                  : 'bg-gray-100 border-gray-200 text-gray-400 hover:text-[#C8A165] hover:border-[#C8A165]/50'
+                              }`}
+                              title={
+                                Boolean(prod.is_featured || prod.isFeatured)
+                                  ? '⭐ Featured in Main Page Carousel! (Click to remove)'
+                                  : 'Click to add to Featured Carousel'
+                              }
+                            >
+                              <Star className={`w-3.5 h-3.5 ${Boolean(prod.is_featured || prod.isFeatured) ? 'fill-[#C8A165]' : ''}`} />
+                            </button>
+
                             {/* View 3-Images Modal */}
                             <button
                               onClick={() => setGalleryProduct(prod)}

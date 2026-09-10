@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, 
   Package, 
   Check, 
   AlertCircle, 
-  Loader2 
+  Loader2,
+  Star
 } from 'lucide-react';
 import { ProductItem, Category } from '../../types';
 import { useHardwareStore } from '../../context/HardwareStoreContext';
@@ -21,20 +22,27 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCategoryId }: ProductModalProps) {
-  const { categories } = useHardwareStore();
+  const { categories, products } = useHardwareStore();
 
   // Simplified Form States: Name, Category, 4 Images (Main-Front, Side, Back, Detail)
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [images, setImages] = useState<string[]>(['', '', '', '']);
+  const [isFeatured, setIsFeatured] = useState(false);
 
   // Submission State
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Count currently featured products in catalog
+  const featuredCount = useMemo(() => {
+    return products.filter(p => Boolean(p.is_featured || p.isFeatured)).length;
+  }, [products]);
+
   useEffect(() => {
     if (initialData) {
       setName(initialData.productName || initialData.name || '');
+      setIsFeatured(Boolean(initialData.is_featured ?? initialData.isFeatured ?? false));
       const matchedCatInit = categories.find(c => 
         c.id === initialData.categoryId || 
         c.name.toLowerCase() === (initialData.category || initialData.categoryName || '').toLowerCase()
@@ -65,6 +73,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
       ]);
     } else {
       setName('');
+      setIsFeatured(false);
       setCategoryId(defaultCategoryId || categories[0]?.id || 'cat_lock_bearing');
       setImages(['', '', '', '']);
     }
@@ -75,12 +84,39 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
 
   if (!isOpen) return null;
 
+  const handleToggleFeatured = (checked: boolean) => {
+    if (checked) {
+      // Calculate how many OTHER products are featured
+      const otherFeaturedCount = products.filter(p => 
+        Boolean(p.is_featured || p.isFeatured) && p.id !== initialData?.id
+      ).length;
+
+      if (otherFeaturedCount >= 12) {
+        alert("Max 12 featured products allowed, pehle koi ek hatayein");
+        return;
+      }
+    }
+    setIsFeatured(checked);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
       setFormError('Please enter a product name (e.g. Imperial Mortise Handle Bearing Set).');
       return;
+    }
+
+    if (isFeatured) {
+      const otherFeaturedCount = products.filter(p => 
+        Boolean(p.is_featured || p.isFeatured) && p.id !== initialData?.id
+      ).length;
+
+      if (otherFeaturedCount >= 12) {
+        alert("Max 12 featured products allowed, pehle koi ek hatayein");
+        setFormError("Max 12 featured products allowed, pehle koi ek hatayein");
+        return;
+      }
     }
 
     try {
@@ -110,6 +146,8 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
         categoryId: catIdValue,
         categoryName: catDisplayName,
         category: catDisplayName,
+        is_featured: isFeatured,
+        isFeatured: isFeatured,
         images: validImages.length > 0 ? validImages : [primaryImage].filter(Boolean),
         image: primaryImage,
         imageBase64: primaryImage,
@@ -145,20 +183,38 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
           <div className="flex items-center gap-2.5">
             <Package className="w-5 h-5 text-[#C8A165]" />
             <div>
-              <h3 className="font-cinzel text-lg font-bold text-[#E0C18B]">
-                {initialData ? `Edit Product: ${initialData.name || initialData.productName}` : 'Add New Hardware Product'}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-cinzel text-lg font-bold text-[#E0C18B]">
+                  {initialData ? `Edit Product: ${initialData.name || initialData.productName}` : 'Add New Hardware Product'}
+                </h3>
+              </div>
               <p className="text-[11px] text-[#E0C18B]/80">
                 Product Name is required. 4-angle views uploaded directly to Cloudinary &amp; database.
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#C8A165] hover:text-[#0A2E24] text-white flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Top Featured Count Badge */}
+            <div 
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                featuredCount >= 12
+                  ? 'bg-amber-950/70 border-amber-400 text-amber-300'
+                  : 'bg-black/40 border-[#C8A165]/60 text-[#E0C18B]'
+              }`}
+              title="Featured items displayed in the home page carousel"
+            >
+              <Star className="w-3.5 h-3.5 fill-[#C8A165] text-[#C8A165]" />
+              <span>Featured Selected: {featuredCount}/12</span>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#C8A165] hover:text-[#0A2E24] text-white flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Form Content */}
@@ -173,7 +229,55 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
             />
           </div>
 
-          {/* ================= SECTION 2: BASIC PRODUCT INFORMATION ================= */}
+          {/* ================= SECTION 2: FEATURED CAROUSEL TOGGLE ================= */}
+          <div 
+            className={`p-4 rounded-2xl border-2 transition-all ${
+              isFeatured 
+                ? 'bg-[#0A2E24]/10 border-[#C8A165]' 
+                : 'bg-gray-50 border-gray-200 hover:border-[#C8A165]/40'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={`p-2.5 rounded-xl flex-shrink-0 transition-colors ${
+                  isFeatured 
+                    ? 'bg-[#0A2E24] text-[#E0C18B] border border-[#C8A165]' 
+                    : 'bg-gray-200 text-gray-400'
+                }`}>
+                  <Star className={`w-5 h-5 ${isFeatured ? 'fill-[#C8A165] text-[#C8A165]' : ''}`} />
+                </div>
+                <div>
+                  <label 
+                    htmlFor="toggle-featured-product"
+                    className="font-extrabold text-[#0A2E24] text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer select-none"
+                  >
+                    <span>⭐ Add to Featured Carousel (Main Page Patti)</span>
+                  </label>
+                  <p className="text-[11px] text-gray-600 mt-0.5">
+                    Showcases this product on the top auto-scrolling marquee bar of the home storefront.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`text-[11px] font-bold ${isFeatured ? 'text-[#0A2E24]' : 'text-gray-400'}`}>
+                  {isFeatured ? 'Active' : 'Off'}
+                </span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    id="toggle-featured-product"
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => handleToggleFeatured(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0A2E24] peer-checked:after:bg-[#C8A165]"></div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* ================= SECTION 3: BASIC PRODUCT INFORMATION ================= */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
             {/* Name */}

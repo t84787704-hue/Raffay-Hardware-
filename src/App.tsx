@@ -11,6 +11,7 @@ import { SimpleAdminLogin } from './components/admin/SimpleAdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { CategoryProductPage } from './components/CategoryProductPage';
 import { Product3ImagesGalleryModal } from './components/Product3ImagesGalleryModal';
+import { FeaturedProductsCarousel } from './components/FeaturedProductsCarousel';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Category, ProductItem } from './types';
 
@@ -204,7 +205,12 @@ function StorefrontHome() {
       />
 
       <main className="flex-1 bg-[#E8D5B7]">
-        {/* Wabi-style 4 Categories Grid */}
+        {/* Featured Products - Trending Now Auto-Scrolling Showcase (Right after Header/Search, before Categories) */}
+        <FeaturedProductsCarousel
+          onSelectProduct={(prod) => setSelectedProductForGallery(prod)}
+        />
+
+        {/* Categories Grid (165-Degree Hinges, locks, handles, etc.) */}
         <CategoriesGrid
           selectedCategory={selectedCategory}
           onSelectCategory={handleSelectCategory}

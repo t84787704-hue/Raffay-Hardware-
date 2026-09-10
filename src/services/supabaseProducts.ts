@@ -87,9 +87,75 @@ export function mapSupabaseRowToProduct(row: SupabaseProductRow): ProductItem {
     isBestSeller: false,
     isNewArrival: true,
     order: typeof row.display_order === 'number' ? row.display_order : (typeof row.order === 'number' ? row.order : undefined),
+    is_featured: Boolean(row.is_featured ?? row.isFeatured ?? false),
+    isFeatured: Boolean(row.is_featured ?? row.isFeatured ?? false),
     createdAt: row.created_at || new Date().toISOString(),
-    updatedAt: row.created_at || new Date().toISOString()
+    updatedAt: row.updated_at || row.created_at || new Date().toISOString()
   };
+}
+
+/**
+ * Ensures is_featured column is recognized or logs SQL helper for Supabase
+ */
+export async function ensureIsFeaturedColumn(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  try {
+    const { error } = await supabase
+      .from('products')
+      .select('is_featured')
+      .limit(1);
+
+    if (error && (error.message.includes('is_featured') || error.code === '42703')) {
+      console.warn('[Supabase SQL Guide] Please run this in Supabase SQL Editor if not added yet: ALTER TABLE products ADD COLUMN IF NOT EXISTS is_featured boolean DEFAULT false;');
+    }
+  } catch (e) {
+    // Silent check
+  }
+}
+
+/**
+ * Fetches featured products from Supabase where is_featured = true limit 12 order by updated_at desc
+ */
+export async function getFeaturedProducts(limit = 12): Promise<ProductItem[]> {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  try {
+    // Query where is_featured = true, order by updated_at desc
+    let { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_featured', true)
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    // Fallback if updated_at column is missing
+    if (error && (error.message.includes('updated_at') || error.code === '42703')) {
+      const fallbackQuery = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_featured', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      data = fallbackQuery.data;
+      error = fallbackQuery.error;
+    }
+
+    if (error) {
+      console.warn('[Supabase] Notice querying featured products (is_featured = true):', error.message);
+      return [];
+    }
+
+    if (Array.isArray(data)) {
+      return data.map(mapSupabaseRowToProduct);
+    }
+    return [];
+  } catch (err: any) {
+    console.warn('[Supabase] Offline/network note fetching featured products:', err?.message || err);
+    return [];
+  }
 }
 
 /**
@@ -117,6 +183,36 @@ export async function getProductsFromSupabase(): Promise<ProductItem[]> {
     return [];
   } catch (err: any) {
     console.warn('[Supabase] Offline/network note fetching products:', err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Fetches the latest N products from Supabase for featured showcase
+ */
+export async function getLatestFeaturedProducts(limit = 12): Promise<ProductItem[]> {
+  if (!isSupabaseConfigured) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn('[Supabase] Notice querying latest featured products:', error.message);
+      return [];
+    }
+
+    if (Array.isArray(data)) {
+      return data.map(mapSupabaseRowToProduct);
+    }
+    return [];
+  } catch (err: any) {
+    console.warn('[Supabase] Offline/network note fetching latest products:', err?.message || err);
     return [];
   }
 }
@@ -208,6 +304,8 @@ export async function addProductToSupabase(payload: {
   price?: number;
   description?: string;
   stock?: number;
+  is_featured?: boolean;
+  isFeatured?: boolean;
 }): Promise<ProductItem> {
   const {
     name,
@@ -218,6 +316,7 @@ export async function addProductToSupabase(payload: {
     stock = 100
   } = payload;
 
+  const is_featured = Boolean(payload.is_featured ?? payload.isFeatured ?? false);
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'prod';
 
   // Step 1: Upload images to Supabase Storage 'product-images' bucket
@@ -241,7 +340,7 @@ export async function addProductToSupabase(payload: {
   }
 
   // Step 2: Insert into Supabase table public.products
-  const insertPayload = {
+  const insertPayload: Record<string, any> = {
     name: name.trim(),
     category: (category || 'General Hardware').trim(),
     image_main: image_main || null,
@@ -251,7 +350,8 @@ export async function addProductToSupabase(payload: {
     image_url: image_url || null,
     price: Number(price) || 0,
     description: description.trim() || null,
-    stock: Number(stock) || 100
+    stock: Number(stock) || 100,
+    is_featured: is_featured
   };
 
   const localFallbackRow: SupabaseProductRow = {
@@ -268,10 +368,22 @@ export async function addProductToSupabase(payload: {
   try {
     console.log('[Supabase] Inserting product into public.products:', insertPayload);
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('products')
       .insert([insertPayload])
       .select();
+
+    // If is_featured column is not yet on table, retry insert without is_featured
+    if (error && (error.message.includes('is_featured') || error.code === '42703')) {
+      console.warn('[Supabase] is_featured column note during insert. Retrying insert without is_featured.');
+      const { is_featured: _omitted, ...safePayload } = insertPayload;
+      const retryResult = await supabase
+        .from('products')
+        .insert([safePayload])
+        .select();
+      data = retryResult.data;
+      error = retryResult.error;
+    }
 
     if (error) {
       console.warn('[Supabase] Insert notice:', error.message);
@@ -306,6 +418,15 @@ export async function updateProductInSupabase(
   if (updatedData.description !== undefined) updatePayload.description = String(updatedData.description).trim();
   if (updatedData.stock !== undefined) updatePayload.stock = Number(updatedData.stock);
 
+  if (updatedData.is_featured !== undefined) {
+    updatePayload.is_featured = Boolean(updatedData.is_featured);
+  } else if (updatedData.isFeatured !== undefined) {
+    updatePayload.is_featured = Boolean(updatedData.isFeatured);
+  }
+
+  // Update timestamp
+  updatePayload.updated_at = new Date().toISOString();
+
   if (Array.isArray(updatedData.images) && updatedData.images.length > 0) {
     updatePayload.image_main = updatedData.images[0] || null;
     updatePayload.image_side = updatedData.images[1] || null;
@@ -323,10 +444,23 @@ export async function updateProductInSupabase(
 
   try {
     console.log('[Supabase] Updating product ID:', id, updatePayload);
-    const { error } = await supabase
+    let { error } = await supabase
       .from('products')
       .update(updatePayload)
       .eq('id', id);
+
+    // If column missing (e.g. is_featured or updated_at), retry with safe columns
+    if (error && (error.message.includes('is_featured') || error.message.includes('updated_at') || error.code === '42703')) {
+      console.warn('[Supabase] Schema column note during update. Retrying update with safe columns.');
+      const safePayload = { ...updatePayload };
+      if (error.message.includes('is_featured')) delete safePayload.is_featured;
+      if (error.message.includes('updated_at')) delete safePayload.updated_at;
+      const retryResult = await supabase
+        .from('products')
+        .update(safePayload)
+        .eq('id', id);
+      error = retryResult.error;
+    }
 
     if (error) {
       console.warn('[Supabase] Update notice:', error.message);
