@@ -152,6 +152,104 @@ function triggerDownloadLink(url: string, filename: string) {
 }
 
 /**
+ * Standardizes an uploaded product image onto an 800x800 white canvas:
+ * 1. Creates an 800x800 solid white (#FFFFFF) background.
+ * 2. Centers the uploaded image inside with a max dimension of 700x700, keeping aspect ratio.
+ * 3. Exports a standardized 800x800 File for consistent storage in Supabase / Cloudinary.
+ */
+export async function standardizeImageTo800x800(
+  input: File | Blob | string, 
+  originalFileName?: string
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const targetFileName = 
+      originalFileName || 
+      (input instanceof File ? input.name : `rhc-angle-800x800-${Date.now()}.jpg`);
+
+    const processImageElement = (img: HTMLImageElement) => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 800;
+        canvas.height = 800;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          if (input instanceof File) return resolve(input);
+          return resolve(new File([], targetFileName, { type: 'image/jpeg' }));
+        }
+
+        // 1. Create 800x800 solid white background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 800, 800);
+
+        // 2. Center uploaded image inside with max 700x700, keeping aspect ratio
+        const maxDim = 700;
+        const natW = img.naturalWidth || img.width || 700;
+        const natH = img.naturalHeight || img.height || 700;
+        const scale = Math.min(maxDim / natW, maxDim / natH);
+        const drawW = Math.max(1, Math.round(natW * scale));
+        const drawH = Math.max(1, Math.round(natH * scale));
+        const drawX = Math.round((800 - drawW) / 2);
+        const drawY = Math.round((800 - drawH) / 2);
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // 3. Export standardized 800x800 File
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const cleanName = targetFileName.replace(/\.[^/.]+$/, '') + '-800x800.jpg';
+              resolve(new File([blob], cleanName, { type: 'image/jpeg' }));
+            } else if (input instanceof File) {
+              resolve(input);
+            } else {
+              resolve(new File([], targetFileName, { type: 'image/jpeg' }));
+            }
+          },
+          'image/jpeg',
+          0.92
+        );
+      } catch (err) {
+        console.warn('[standardizeImageTo800x800] Canvas processing notice:', err);
+        if (input instanceof File) resolve(input);
+        else resolve(new File([], targetFileName, { type: 'image/jpeg' }));
+      }
+    };
+
+    if (typeof input === 'string') {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => processImageElement(img);
+      img.onerror = () => {
+        const plainImg = new Image();
+        plainImg.onload = () => processImageElement(plainImg);
+        plainImg.onerror = (e) => reject(e);
+        plainImg.src = input;
+      };
+      img.src = input;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => processImageElement(img);
+      img.onerror = () => {
+        if (input instanceof File) resolve(input);
+        else resolve(new File([input], targetFileName, { type: 'image/jpeg' }));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => {
+      if (input instanceof File) resolve(input);
+      else resolve(new File([input], targetFileName, { type: 'image/jpeg' }));
+    };
+    reader.readAsDataURL(input);
+  });
+}
+
+/**
  * Watermarking on upload is strictly disabled.
  * Returns the original clean file as-is without modifying or burning any watermark.
  */

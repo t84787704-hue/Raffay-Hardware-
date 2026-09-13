@@ -421,7 +421,14 @@ export function CategoryProductPage({
 
                   {/* Single Solid Product Image Container (White Background) */}
                   <div 
-                    className="relative w-full aspect-square bg-white flex items-center justify-center p-3 overflow-hidden border-b border-[#C5B08F]/60"
+                    className="relative w-full h-[280px] aspect-square bg-white flex items-center justify-center p-[12px] overflow-hidden border-b border-[#C5B08F]/60"
+                    style={{
+                      width: '100%',
+                      height: '280px',
+                      aspectRatio: '1 / 1',
+                      backgroundColor: '#FFFFFF',
+                      padding: '12px'
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       const safeTitle = (prodDisplayName || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -433,7 +440,16 @@ export function CategoryProductPage({
                       src={formatImageSrc(prodImg, DEFAULT_FALLBACK_IMAGE)}
                       alt={prodDisplayName}
                       onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
-                      className="w-full h-full object-contain bg-white group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        objectPosition: 'center',
+                        backgroundColor: '#FFFFFF'
+                      }}
+                      className="w-full h-full object-contain object-center bg-white group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                       loading="lazy"
                     />
 

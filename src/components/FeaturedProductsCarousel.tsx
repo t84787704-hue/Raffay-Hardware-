@@ -345,12 +345,30 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
                     </div>
 
                     {/* Clean Product Image Container (White Background) */}
-                    <div className="relative aspect-square w-full bg-white rounded-xl p-3 flex items-center justify-center overflow-hidden border border-[#C8A165]/30 mb-3 shadow-inner group-hover:border-[#C8A165] transition-colors">
+                    <div 
+                      className="relative aspect-square w-full h-[280px] bg-white rounded-xl p-[12px] flex items-center justify-center overflow-hidden border border-[#C8A165]/30 mb-3 shadow-inner group-hover:border-[#C8A165] transition-colors"
+                      style={{
+                        width: '100%',
+                        height: '280px',
+                        aspectRatio: '1 / 1',
+                        backgroundColor: '#FFFFFF',
+                        padding: '12px'
+                      }}
+                    >
                       <img
                         src={formattedImg}
                         alt={displayName}
                         onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
-                        className="w-full h-full object-contain bg-white group-hover:scale-108 transition-transform duration-300 pointer-events-none"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain',
+                          objectPosition: 'center',
+                          backgroundColor: '#FFFFFF'
+                        }}
+                        className="w-full h-full object-contain object-center bg-white group-hover:scale-108 transition-transform duration-300 pointer-events-none"
                         loading="lazy"
                       />
 

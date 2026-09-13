@@ -133,15 +133,19 @@ export function ProductCatalog({
                   }}
                   className="shadow hover:shadow-lg transition-transform duration-200 active:scale-95 hover:scale-[1.02] cursor-pointer flex flex-col items-center justify-between box-border"
                 >
-                  {/* Inner white box: white bg, object-fit contain */}
+                  {/* Inner white box: fixed square 280px, white bg, 12px padding, object-fit contain */}
                   <div 
                     style={{
-                      height: '70%',
+                      height: '280px',
                       width: '100%',
+                      aspectRatio: '1 / 1',
                       backgroundColor: '#FFFFFF',
-                      borderRadius: '10px',
+                      borderRadius: '12px',
                       overflow: 'hidden',
-                      padding: '4px'
+                      padding: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -149,7 +153,7 @@ export function ProductCatalog({
                       downloadWithWatermark(formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE), `${safeTitle}.jpg`);
                     }}
                     title="Right-click to download image with RHC watermark"
-                    className="flex items-center justify-center shadow-inner"
+                    className="w-full h-[280px] aspect-square flex items-center justify-center shadow-inner bg-white"
                   >
                     <img
                       src={formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE)}
@@ -158,14 +162,18 @@ export function ProductCatalog({
                       style={{
                         width: '100%',
                         height: '100%',
-                        objectFit: 'contain'
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        objectPosition: 'center',
+                        backgroundColor: '#FFFFFF'
                       }}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         const safeTitle = (prod.productName || prod.name || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-');
                         downloadWithWatermark(formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE), `${safeTitle}.jpg`);
                       }}
-                      className="rounded-md bg-white block"
+                      className="rounded-md bg-white block object-contain object-center"
                       loading="lazy"
                     />
                   </div>

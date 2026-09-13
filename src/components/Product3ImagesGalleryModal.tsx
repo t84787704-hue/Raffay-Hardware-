@@ -176,7 +176,11 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
 
             {/* Main Stage Big Image with Swipe & Zoom */}
             <div 
-              className="relative aspect-square sm:aspect-[4/3] rounded-xl overflow-hidden bg-white border-2 border-[#C8A165]/40 flex items-center justify-center group shadow-inner touch-pan-y select-none"
+              className="relative aspect-square w-full rounded-xl overflow-hidden bg-white border-2 border-[#C8A165]/40 flex items-center justify-center group shadow-inner touch-pan-y select-none p-[12px]"
+              style={{
+                backgroundColor: '#FFFFFF',
+                padding: '12px'
+              }}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -189,7 +193,16 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                 src={activeImage}
                 alt={`${prodName} - View ${selectedIndex + 1}`}
                 onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
-                className={`w-full h-full object-contain bg-white transition-all duration-300 ${
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  objectPosition: 'center',
+                  backgroundColor: '#FFFFFF'
+                }}
+                className={`w-full h-full object-contain object-center bg-white transition-all duration-300 ${
                   isZoomed ? 'scale-175 cursor-zoom-out z-10' : 'group-hover:scale-105 cursor-zoom-in'
                 }`}
                 onClick={() => setIsZoomed(!isZoomed)}
@@ -312,7 +325,14 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                     <img
                       src={img}
                       alt={label}
-                      className="w-full h-full object-contain"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        objectPosition: 'center',
+                        backgroundColor: '#FFFFFF'
+                      }}
+                      className="w-full h-full object-contain object-center bg-white"
                     />
 
                     {isActive && (

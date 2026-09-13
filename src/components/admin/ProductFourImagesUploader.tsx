@@ -15,7 +15,7 @@ import {
   GripVertical,
   Star
 } from 'lucide-react';
-import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE } from '../../utils/imageUtils';
+import { compressAndConvert, formatImageSrc, formatBytes, getBase64SizeBytes, DEFAULT_FALLBACK_IMAGE, standardizeImageTo800x800 } from '../../utils/imageUtils';
 import { uploadToCloudinary } from '../../lib/cloudinary';
 import { uploadImageToSupabaseStorage } from '../../services/supabaseStorage';
 
@@ -71,10 +71,13 @@ export function ProductFourImagesUploader({
 
       const originalFile = file;
 
-      // Upload clean original image to Supabase as it is (DO NOT burn watermark on upload)
+      // Auto-process on canvas: create 800x800 white background, put image in center with max 700x700 keeping aspect ratio
+      const standardizedFile = await standardizeImageTo800x800(originalFile);
+
+      // Upload standardized 800x800 image to Supabase Storage
       let secureUrl = '';
       try {
-        secureUrl = await uploadImageToSupabaseStorage(originalFile, sku || 'rhc-prod', `angle-${index + 1}`);
+        secureUrl = await uploadImageToSupabaseStorage(standardizedFile, sku || 'rhc-prod', `angle-${index + 1}`);
       } catch (cloudErr) {
         console.warn('Supabase storage upload notice:', cloudErr);
       }
@@ -82,9 +85,9 @@ export function ProductFourImagesUploader({
       // Fallback if needed
       if (!secureUrl) {
         try {
-          secureUrl = await uploadToCloudinary(originalFile);
+          secureUrl = await uploadToCloudinary(standardizedFile);
         } catch {
-          secureUrl = await compressAndConvert(originalFile);
+          secureUrl = await compressAndConvert(standardizedFile);
         }
       }
 
@@ -223,13 +226,30 @@ export function ProductFourImagesUploader({
     setUrlInputVal(currentImages[index] || '');
   };
 
-  const handleSaveUrlModal = () => {
+  const handleSaveUrlModal = async () => {
     if (urlModalIndex !== null) {
+      const trimmed = urlInputVal.trim();
+      const targetIndex = urlModalIndex;
       const nextImages = [...currentImages];
-      nextImages[urlModalIndex] = urlInputVal.trim();
+      nextImages[targetIndex] = trimmed;
       onChange(nextImages);
       setUrlModalIndex(null);
       setUrlInputVal('');
+
+      // Auto-process URL on 800x800 canvas in background
+      if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('data:'))) {
+        try {
+          const standardized = await standardizeImageTo800x800(trimmed, `url-angle-${targetIndex + 1}.jpg`);
+          const uploadedUrl = await uploadImageToSupabaseStorage(standardized, sku || 'rhc-prod', `angle-${targetIndex + 1}`);
+          if (uploadedUrl) {
+            const updated = [...nextImages];
+            updated[targetIndex] = uploadedUrl;
+            onChange(updated);
+          }
+        } catch (e) {
+          console.warn('URL auto-standardization notice:', e);
+        }
+      }
     }
   };
 

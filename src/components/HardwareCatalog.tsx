@@ -237,7 +237,14 @@ export function HardwareCatalog({
                   >
                     {/* Inner White Box for Hardware Display */}
                     <div 
-                      className="w-full aspect-square bg-white rounded-xl overflow-hidden p-2 flex items-center justify-center relative shadow-inner"
+                      className="w-full h-[280px] aspect-square bg-white rounded-xl overflow-hidden p-[12px] flex items-center justify-center relative shadow-inner"
+                      style={{
+                        width: '100%',
+                        height: '280px',
+                        aspectRatio: '1 / 1',
+                        backgroundColor: '#FFFFFF',
+                        padding: '12px'
+                      }}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         downloadWithWatermark(formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE), `${safeTitle}.jpg`);
@@ -248,7 +255,16 @@ export function HardwareCatalog({
                         src={formatImageSrc(displayImage, DEFAULT_FALLBACK_IMAGE)}
                         alt={prod.productName || prod.name}
                         onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
-                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain',
+                          objectPosition: 'center',
+                          backgroundColor: '#FFFFFF'
+                        }}
+                        className="w-full h-full object-contain object-center bg-white group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
                       />
 
