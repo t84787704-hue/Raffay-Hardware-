@@ -814,7 +814,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                           ? 'bg-amber-100 border-amber-400 text-amber-900'
                           : 'bg-[#0A2E24] border-[#C8A165] text-[#E0C18B]'
                       }`}
-                      title="Items selected for Featured Carousel on Home Page (Max 12)"
+                      title="Items selected for Featured Carousel on Hardware Catalog Page (Max 12)"
                     >
                       <Star className="w-3.5 h-3.5 fill-[#C8A165] text-[#C8A165]" />
                       <span>Featured Selected: {featuredCount}/12</span>

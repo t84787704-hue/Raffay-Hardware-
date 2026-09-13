@@ -51,27 +51,23 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
         if (!isMounted) return;
 
         if (featured && featured.length > 0) {
-          // If less than 12 featured selected, show ONLY those selected (don't auto-fill with latest)
+          // If featured products selected, show ONLY those selected (don't auto-fill with non-featured)
           setProducts(featured.slice(0, 12));
+        } else if (featured && featured.length === 0) {
+          // Explicitly 0 featured products in Supabase
+          const storeFeatured = (storeProducts || []).filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
+          setProducts(storeFeatured);
         } else if (storeProducts && storeProducts.length > 0) {
           const storeFeatured = storeProducts.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-          if (storeFeatured.length > 0) {
-            setProducts(storeFeatured);
-          } else {
-            setProducts(INITIAL_PRODUCTS.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12));
-          }
+          setProducts(storeFeatured);
         } else {
-          setProducts(INITIAL_PRODUCTS.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12));
+          setProducts([]);
         }
       } catch (err) {
         console.warn('[FeaturedProductsCarousel] Fetch notice, using fallback featured products:', err);
         if (isMounted) {
           const storeFeatured = (storeProducts || []).filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-          if (storeFeatured.length > 0) {
-            setProducts(storeFeatured);
-          } else {
-            setProducts(INITIAL_PRODUCTS.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12));
-          }
+          setProducts(storeFeatured);
         }
       }
     }
@@ -201,6 +197,11 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
     transition: isTransitioning ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
   };
 
+  // If no featured products selected, hide the carousel completely (don't show empty)
+  if (baseItems.length === 0) {
+    return null;
+  }
+
   return (
     <section 
       id="featured-products"
@@ -222,12 +223,12 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
             </div>
 
             {/* Main Title - Prominent Heading */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#E0C18B] font-cinzel tracking-wide">
-                Featured Products
+                FEATURED PRODUCTS
               </h2>
-              <span className="hidden sm:inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-[#C8A165] text-[#0A2E24] uppercase tracking-wider">
-                Trending Now
+              <span className="inline-block px-2.5 py-1 rounded text-xs font-bold bg-[#C8A165] text-[#0A2E24] uppercase tracking-wider shadow-sm">
+                TRENDING NOW
               </span>
             </div>
 

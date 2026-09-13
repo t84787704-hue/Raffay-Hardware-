@@ -11,7 +11,7 @@ import { SimpleAdminLogin } from './components/admin/SimpleAdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { CategoryProductPage } from './components/CategoryProductPage';
 import { Product3ImagesGalleryModal } from './components/Product3ImagesGalleryModal';
-import { FeaturedProductsCarousel } from './components/FeaturedProductsCarousel';
+import { HardwareCatalog } from './components/HardwareCatalog';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Category, ProductItem } from './types';
 
@@ -205,11 +205,6 @@ function StorefrontHome() {
       />
 
       <main className="flex-1 bg-[#E8D5B7]">
-        {/* Featured Products - Trending Now Auto-Scrolling Showcase (Right after Header/Search, before Categories) */}
-        <FeaturedProductsCarousel
-          onSelectProduct={(prod) => setSelectedProductForGallery(prod)}
-        />
-
         {/* Categories Grid (165-Degree Hinges, locks, handles, etc.) */}
         <CategoriesGrid
           selectedCategory={selectedCategory}
@@ -247,7 +242,74 @@ function StorefrontHome() {
 }
 
 // ==========================================
-// 4. MAIN APP ROUTER COMPONENT
+// 4. HARDWARE CATALOG PAGE ROUTE (/catalog, /hardware-catalog)
+// ==========================================
+function HardwareCatalogRoute() {
+  const navigate = useNavigate();
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [selectedProductForGallery, setSelectedProductForGallery] = useState<ProductItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const { 
+    inquiryItems, 
+    updateInquiryQuantity, 
+    removeInquiryItem, 
+    clearInquiry 
+  } = useHardwareStore();
+
+  const handleSelectCategoryObject = (cat: Category) => {
+    navigate(`/category/${encodeURIComponent(cat.id || cat.name)}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectCategoryId = (id: string) => {
+    navigate(`/category/${encodeURIComponent(id)}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#E8D5B7] text-[#1E2923]">
+      <Header
+        onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+        inquiryCount={inquiryItems.length}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSelectCategory={handleSelectCategoryId}
+        onSelectCategoryObject={handleSelectCategoryObject}
+        onSelectProductObject={(prod) => setSelectedProductForGallery(prod)}
+      />
+
+      <main className="flex-1 bg-[#E8D5B7]">
+        <HardwareCatalog
+          onSelectProduct={(prod) => setSelectedProductForGallery(prod)}
+          onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+        />
+      </main>
+
+      <Footer
+        onSelectCategory={handleSelectCategoryId}
+        onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+      />
+
+      <WholesaleQuoteModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        inquiryItems={inquiryItems}
+        onUpdateQuantity={updateInquiryQuantity}
+        onRemoveItem={removeInquiryItem}
+        onClearAll={clearInquiry}
+      />
+
+      <Product3ImagesGalleryModal
+        product={selectedProductForGallery}
+        onClose={() => setSelectedProductForGallery(null)}
+      />
+    </div>
+  );
+}
+
+// ==========================================
+// 5. MAIN APP ROUTER COMPONENT
 // ==========================================
 export default function App() {
   return (
@@ -261,6 +323,10 @@ export default function App() {
           {/* Simple Password Admin Login Route */}
           <Route path="/admin-login" element={<SimpleAdminLogin />} />
           
+          {/* Dedicated Hardware Catalog Route */}
+          <Route path="/catalog" element={<HardwareCatalogRoute />} />
+          <Route path="/hardware-catalog" element={<HardwareCatalogRoute />} />
+
           {/* Category SKU Page */}
           <Route path="/category/:categoryId" element={<CategoryRoute />} />
           

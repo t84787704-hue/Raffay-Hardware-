@@ -251,10 +251,10 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
                     htmlFor="toggle-featured-product"
                     className="font-extrabold text-[#0A2E24] text-xs sm:text-sm flex items-center gap-1.5 cursor-pointer select-none"
                   >
-                    <span>⭐ Add to Featured Carousel (Main Page Patti)</span>
+                    <span>⭐ Add to Featured Carousel (Hardware Catalog)</span>
                   </label>
                   <p className="text-[11px] text-gray-600 mt-0.5">
-                    Showcases this product on the top auto-scrolling marquee bar of the home storefront.
+                    Showcases this product on the top auto-scrolling marquee bar of the Hardware Catalog page.
                   </p>
                 </div>
               </div>

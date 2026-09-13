@@ -420,17 +420,35 @@ export function Header({
           {/* Center Navigation Links (Desktop) */}
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium">
             <a 
-              href="#categories" 
+              href="/#categories" 
+              onClick={(e) => {
+                if (location.pathname !== '/') {
+                  e.preventDefault();
+                  navigate('/');
+                  setTimeout(() => {
+                    const el = document.getElementById('categories');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }, 50);
+                }
+              }}
               className="text-gray-200 hover:text-[#C8A165] transition-colors py-2"
             >
               Categories
             </a>
-            <a 
-              href="#products" 
-              className="text-gray-200 hover:text-[#C8A165] transition-colors py-2"
+            <button 
+              type="button"
+              onClick={() => {
+                navigate('/catalog');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`hover:text-[#C8A165] transition-colors py-2 cursor-pointer font-medium ${
+                location.pathname === '/catalog' || location.pathname === '/hardware-catalog'
+                  ? 'text-[#C8A165] font-bold border-b-2 border-[#C8A165]'
+                  : 'text-gray-200'
+              }`}
             >
               Hardware Catalog
-            </a>
+            </button>
             <a 
               href="#wholesale-rates" 
               className="text-gray-200 hover:text-[#C8A165] transition-colors py-2"
@@ -582,22 +600,42 @@ export function Header({
       {mobileMenuOpen && (
         <div id="mobile-menu-drawer" className="lg:hidden bg-[#061D17] border-t border-[#C8A165]/30 px-4 pt-3 pb-6 space-y-3 shadow-2xl">
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <a 
-              href="#categories" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="p-2.5 rounded-lg bg-[#0A2E24] text-white hover:text-[#C8A165] flex items-center gap-2 border border-[#C8A165]/20"
+            <button 
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (location.pathname !== '/') {
+                  navigate('/');
+                  setTimeout(() => {
+                    const el = document.getElementById('categories');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }, 50);
+                } else {
+                  const el = document.getElementById('categories');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              className="p-2.5 rounded-lg bg-[#0A2E24] text-white hover:text-[#C8A165] flex items-center gap-2 border border-[#C8A165]/20 text-left cursor-pointer"
             >
               <Layers className="w-4 h-4 text-[#C8A165]" />
               <span>Categories ({categories.length})</span>
-            </a>
-            <a 
-              href="#products" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="p-2.5 rounded-lg bg-[#0A2E24] text-white hover:text-[#C8A165] flex items-center gap-2 border border-[#C8A165]/20"
+            </button>
+            <button 
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/catalog');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`p-2.5 rounded-lg text-white hover:text-[#C8A165] flex items-center gap-2 border text-left cursor-pointer ${
+                location.pathname === '/catalog' || location.pathname === '/hardware-catalog'
+                  ? 'bg-[#124A3B] border-[#C8A165] text-[#E0C18B] font-bold'
+                  : 'bg-[#0A2E24] border-[#C8A165]/20'
+              }`}
             >
               <ShoppingBag className="w-4 h-4 text-[#C8A165]" />
-              <span>Full Hardware Catalog</span>
-            </a>
+              <span>Hardware Catalog</span>
+            </button>
             <a 
               href="#wholesale-rates" 
               onClick={() => setMobileMenuOpen(false)}
