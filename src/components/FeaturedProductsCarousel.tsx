@@ -5,246 +5,191 @@ import {
   ChevronRight, 
   Eye, 
   Layers, 
-  TrendingUp, 
   Pause, 
   Play,
   Star
 } from 'lucide-react';
 import { ProductItem } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
-import { getFeaturedProducts } from '../services/supabaseProducts';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
 import { formatImageSrc, handleImageError, DEFAULT_FALLBACK_IMAGE, downloadWithWatermark } from '../utils/imageUtils';
 
-interface FeaturedProductsCarouselProps {
+export interface FeaturedProductsCarouselProps {
+  products?: ProductItem[];
   onSelectProduct: (product: ProductItem) => void;
 }
 
-export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCarouselProps) {
+const CARD_WIDTH = 200; // Fixed 200px width per user requirement
+const CARD_GAP = 16;   // Gap between cards in pixels
+const SLOT_WIDTH = CARD_WIDTH + CARD_GAP; // 216px total slot
+const LOOP_DURATION_SEC = 28; // Exact 28s linear auto-scroll per user requirement
+
+export function FeaturedProductsCarousel({ products: propProducts, onSelectProduct }: FeaturedProductsCarouselProps) {
   const { products: storeProducts } = useHardwareStore();
-  // Always initialize with featured products (don't auto-fill with latest non-featured products)
-  const [products, setProducts] = useState<ProductItem[]>(() => {
-    if (storeProducts && storeProducts.length > 0) {
-      const feat = storeProducts.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-      if (feat.length > 0) return feat;
-    }
-    return INITIAL_PRODUCTS.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-  });
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isManualPause, setIsManualPause] = useState(false);
-  const [itemsPerView, setItemsPerView] = useState(4);
-  const [isTransitioning, setIsTransitioning] = useState(true);
 
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // 1. Fetch from products where is_featured = true limit 12 order by updated_at desc
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadFeaturedProducts() {
-      try {
-        const featured = await getFeaturedProducts(12);
-        
-        if (!isMounted) return;
-
-        if (featured && featured.length > 0) {
-          // If featured products selected, show ONLY those selected (don't auto-fill with non-featured)
-          setProducts(featured.slice(0, 12));
-        } else if (featured && featured.length === 0) {
-          // Explicitly 0 featured products in Supabase
-          const storeFeatured = (storeProducts || []).filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-          setProducts(storeFeatured);
-        } else if (storeProducts && storeProducts.length > 0) {
-          const storeFeatured = storeProducts.filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-          setProducts(storeFeatured);
-        } else {
-          setProducts([]);
-        }
-      } catch (err) {
-        console.warn('[FeaturedProductsCarousel] Fetch notice, using fallback featured products:', err);
-        if (isMounted) {
-          const storeFeatured = (storeProducts || []).filter(p => Boolean(p.is_featured || p.isFeatured)).slice(0, 12);
-          setProducts(storeFeatured);
-        }
-      }
-    }
-
-    loadFeaturedProducts();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [storeProducts]);
-
-  // 2. Responsive items per view: mobile 1, tablet 2, desktop 4
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      if (width < 640) {
-        setItemsPerView(1);
-      } else if (width < 1024) {
-        setItemsPerView(2);
-      } else {
-        setItemsPerView(4);
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Show only selected featured products (max 12)
+  // 12 products where is_featured = true (or latest 12 if less selected)
   const baseItems = useMemo(() => {
-    return products.slice(0, 12);
-  }, [products]);
+    if (propProducts && propProducts.length > 0) {
+      return propProducts.slice(0, 12);
+    }
+    const sourceList = (storeProducts && storeProducts.length > 0) ? storeProducts : INITIAL_PRODUCTS;
+    const cleanList = sourceList.filter((item) => {
+      const combined = `${item.id} ${item.sku || ''} ${item.name || ''} ${item.productName || ''}`.toLowerCase();
+      return !combined.includes('5032') && !combined.includes('bus') && !combined.includes('vehicle');
+    });
 
-  // Seamless infinite loop helper
+    const featured = cleanList.filter(p => Boolean(p.is_featured || p.isFeatured));
+    if (featured.length >= 12) {
+      return featured.slice(0, 12);
+    }
+    const featuredIds = new Set(featured.map(f => f.id));
+    const remaining = cleanList.filter(p => !featuredIds.has(p.id));
+    return [...featured, ...remaining].slice(0, 12);
+  }, [propProducts, storeProducts]);
+
+  // Triple the items for infinite, seamless looping without blank gaps
   const displayItems = useMemo(() => {
     if (baseItems.length === 0) return [];
-    if (baseItems.length < 4) {
-      const quad = [...baseItems, ...baseItems, ...baseItems, ...baseItems];
-      return [...quad, ...quad];
-    }
     return [...baseItems, ...baseItems, ...baseItems];
   }, [baseItems]);
 
   const totalBaseCount = baseItems.length;
+  const totalSetWidth = totalBaseCount * SLOT_WIDTH;
 
-  // Initialize starting index in the middle set for seamless looping
+  // Refs for high-performance 60fps linear scrolling without React re-render lags
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef<number>(0);
+  const isHoveredRef = useRef<boolean>(false);
+  const isManualPauseRef = useRef<boolean>(false);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchLastXRef = useRef<number | null>(null);
+
+  // Synchronize ref flags
   useEffect(() => {
-    if (totalBaseCount > 0) {
-      setCurrentIndex(totalBaseCount);
-    }
-  }, [totalBaseCount]);
+    isHoveredRef.current = isHovered;
+  }, [isHovered]);
 
-  // Advance next card
-  const handleNext = useCallback(() => {
-    if (totalBaseCount === 0) return;
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev + 1);
-  }, [totalBaseCount]);
-
-  // Go to previous card
-  const handlePrev = useCallback(() => {
-    if (totalBaseCount === 0) return;
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev - 1);
-  }, [totalBaseCount]);
-
-  // 3. Infinite loop boundary reset: seamlessly jump without animation
   useEffect(() => {
-    if (totalBaseCount === 0) return;
+    isManualPauseRef.current = isManualPause;
+  }, [isManualPause]);
 
-    if (currentIndex >= totalBaseCount * 2) {
-      const timer = setTimeout(() => {
-        setIsTransitioning(false);
-        setCurrentIndex(currentIndex - totalBaseCount);
-      }, 700);
-      return () => clearTimeout(timer);
-    }
-
-    if (currentIndex <= 0) {
-      const timer = setTimeout(() => {
-        setIsTransitioning(false);
-        setCurrentIndex(currentIndex + totalBaseCount);
-      }, 700);
-      return () => clearTimeout(timer);
-    }
-  }, [currentIndex, totalBaseCount]);
-
-  // 4. Auto-scroll right to left every 2 seconds, pause on hover or manual pause
+  // Infinite 28s linear right-to-left auto-scroll with pause on hover
   useEffect(() => {
-    if (isHovered || isManualPause || totalBaseCount === 0) return;
+    if (totalBaseCount === 0 || totalSetWidth === 0) return;
 
-    const interval = setInterval(() => {
-      handleNext();
-    }, 2000);
+    let animId: number;
+    let lastTime = performance.now();
+    const speed = totalSetWidth / LOOP_DURATION_SEC; // pixels per second
 
-    return () => clearInterval(interval);
-  }, [isHovered, isManualPause, totalBaseCount, handleNext]);
+    const animate = (now: number) => {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
 
-  // Touch handlers for mobile swipe
+      if (!isHoveredRef.current && !isManualPauseRef.current && trackRef.current) {
+        offsetRef.current = (offsetRef.current + speed * dt) % totalSetWidth;
+        trackRef.current.style.transform = `translate3d(-${offsetRef.current}px, 0, 0)`;
+      }
+
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [totalBaseCount, totalSetWidth]);
+
+  // Left arrow to nudge (nudge backwards by 1 card)
+  const handleNudgeLeft = useCallback(() => {
+    if (totalSetWidth === 0) return;
+    offsetRef.current = (offsetRef.current - SLOT_WIDTH + totalSetWidth) % totalSetWidth;
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translate3d(-${offsetRef.current}px, 0, 0)`;
+    }
+  }, [totalSetWidth]);
+
+  // Right arrow to nudge (nudge forwards by 1 card)
+  const handleNudgeRight = useCallback(() => {
+    if (totalSetWidth === 0) return;
+    offsetRef.current = (offsetRef.current + SLOT_WIDTH) % totalSetWidth;
+    if (trackRef.current) {
+      trackRef.current.style.transform = `translate3d(-${offsetRef.current}px, 0, 0)`;
+    }
+  }, [totalSetWidth]);
+
+  // Touch drag support for mobile
   const handleTouchStart = (e: React.TouchEvent) => {
+    isHoveredRef.current = true;
     setIsHovered(true);
-    touchStartX.current = e.targetTouches[0].clientX;
+    touchStartXRef.current = e.targetTouches[0].clientX;
+    touchLastXRef.current = e.targetTouches[0].clientX;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.targetTouches[0].clientX;
+    if (touchLastXRef.current === null) return;
+    const currentX = e.targetTouches[0].clientX;
+    const deltaX = touchLastXRef.current - currentX;
+    touchLastXRef.current = currentX;
+
+    if (totalSetWidth > 0) {
+      offsetRef.current = (offsetRef.current + deltaX + totalSetWidth) % totalSetWidth;
+      if (trackRef.current) {
+        trackRef.current.style.transform = `translate3d(-${offsetRef.current}px, 0, 0)`;
+      }
+    }
   };
 
   const handleTouchEnd = () => {
+    isHoveredRef.current = false;
     setIsHovered(false);
-    if (!touchStartX.current || !touchEndX.current) return;
-    const diff = touchStartX.current - touchEndX.current;
-    if (diff > 40) {
-      handleNext();
-    } else if (diff < -40) {
-      handlePrev();
-    }
-    touchStartX.current = null;
-    touchEndX.current = null;
+    touchStartXRef.current = null;
+    touchLastXRef.current = null;
   };
 
-  // Calculate slide offset percentage
-  const cardWidthPercent = 100 / itemsPerView;
-  const transformStyle = {
-    transform: `translateX(-${currentIndex * cardWidthPercent}%)`,
-    transition: isTransitioning ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
-  };
-
-  // If no featured products selected, hide the carousel completely (don't show empty)
   if (baseItems.length === 0) {
     return null;
   }
 
   return (
-    <section 
-      id="featured-products"
-      className="w-full py-8 sm:py-12 px-3 sm:px-6 lg:px-8 bg-[#0a2e1f] text-white border-y-4 border-[#C8A165] shadow-2xl relative overflow-hidden my-0"
+    <div 
+      id="top-trending-carousel"
+      className="w-full bg-[#0a2e1f] border-2 sm:border-3 border-[#C8A165] rounded-3xl p-5 sm:p-7 shadow-2xl relative overflow-hidden text-white my-2"
     >
       {/* Background Subtle Luxury Accents */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#C8A165]/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#C8A165]/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="relative z-10">
         
         {/* ================= HEADER SECTION ================= */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             {/* Top Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-[#C8A165]/70 text-[#E0C18B] text-xs font-bold uppercase tracking-widest mb-2">
-              <Star className="w-3.5 h-3.5 fill-[#C8A165] text-[#C8A165]" />
-              <span>Trending Now • {baseItems.length} Featured Product{baseItems.length !== 1 ? 's' : ''}</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/50 border border-[#C8A165]/70 text-[#E0C18B] text-xs font-bold uppercase tracking-widest mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#C8A165] animate-pulse" />
+              <span>HANDPICKED FACTORY SELECTION</span>
             </div>
 
-            {/* Main Title - Prominent Heading */}
+            {/* Title exact as requested: TOP TRENDING • AUTO-SCROLLING • 12 ITEMS */}
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#E0C18B] font-cinzel tracking-wide">
-                FEATURED PRODUCTS
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#E0C18B] font-cinzel tracking-wider">
+                TOP TRENDING • AUTO-SCROLLING • 12 ITEMS
               </h2>
-              <span className="inline-block px-2.5 py-1 rounded text-xs font-bold bg-[#C8A165] text-[#0A2E24] uppercase tracking-wider shadow-sm">
-                TRENDING NOW
-              </span>
             </div>
 
             {/* Subtitle */}
             <p className="text-xs sm:text-sm text-gray-300 mt-1 max-w-2xl">
-              Engineered for endurance and luxury aesthetics. Explore top-selling hardware straight from our manufacturing line.
+              Continuous 28s live showcase of top-rated architectural hardware. Hover on any item to pause, use arrows to nudge, or click to inspect 4-angle views.
             </p>
           </div>
 
-          {/* Navigation Controls & Hover Hint */}
-          <div className="flex items-center gap-3 self-start md:self-auto">
-            {/* Play/Pause indicator */}
+          {/* Navigation Controls: Nudge Arrows & Pause Indicator */}
+          <div className="flex items-center gap-2.5 self-start md:self-auto">
+            {/* Play/Pause Button */}
             <button
               type="button"
               onClick={() => setIsManualPause(!isManualPause)}
-              className="px-3 py-1.5 rounded-lg bg-black/40 border border-[#C8A165]/40 text-[#E0C18B] text-xs font-medium flex items-center gap-1.5 hover:border-[#C8A165] transition-all cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-black/50 border border-[#C8A165]/60 text-[#E0C18B] text-xs font-bold flex items-center gap-1.5 hover:border-[#E0C18B] hover:bg-black/70 transition-all cursor-pointer shadow-md"
               title={isManualPause ? 'Resume auto-scroll' : 'Pause auto-scroll'}
             >
               {isManualPause || isHovered ? (
@@ -255,51 +200,60 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
               ) : (
                 <>
                   <Play className="w-3.5 h-3.5 text-[#C8A165]" />
-                  <span>Auto-Moving</span>
+                  <span>28s Linear</span>
                 </>
               )}
             </button>
 
-            {/* Prev Button */}
+            {/* Left Nudge Arrow */}
             <button
               type="button"
-              onClick={handlePrev}
-              className="w-10 h-10 rounded-xl bg-black/40 border border-[#C8A165]/60 hover:bg-[#C8A165] hover:text-[#0A2E24] text-[#E0C18B] flex items-center justify-center transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95"
-              aria-label="Previous product"
-              title="Previous"
+              onClick={handleNudgeLeft}
+              className="w-10 h-10 rounded-xl bg-black/50 border border-[#C8A165]/70 hover:bg-[#C8A165] hover:text-[#0a2e1f] text-[#E0C18B] flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+              aria-label="Nudge left"
+              title="Nudge Left"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
 
-            {/* Next Button */}
+            {/* Right Nudge Arrow */}
             <button
               type="button"
-              onClick={handleNext}
-              className="w-10 h-10 rounded-xl bg-black/40 border border-[#C8A165]/60 hover:bg-[#C8A165] hover:text-[#0A2E24] text-[#E0C18B] flex items-center justify-center transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95"
-              aria-label="Next product"
-              title="Next"
+              onClick={handleNudgeRight}
+              className="w-10 h-10 rounded-xl bg-black/50 border border-[#C8A165]/70 hover:bg-[#C8A165] hover:text-[#0a2e1f] text-[#E0C18B] flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+              aria-label="Nudge right"
+              title="Nudge Right"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* ================= CAROUSEL TRACK (INFINITE MARQUEE) ================= */}
+        {/* ================= CAROUSEL TRACK (INFINITE 28s SCROLL) ================= */}
         <div 
-          ref={containerRef}
-          className="relative overflow-hidden rounded-2xl py-2 select-none"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+          className="relative overflow-hidden rounded-2xl py-3 select-none"
+          onMouseEnter={() => {
+            isHoveredRef.current = true;
+            setIsHovered(true);
+          }}
+          onMouseLeave={() => {
+            isHoveredRef.current = false;
+            setIsHovered(false);
+          }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
           <div 
-            className="flex"
-            style={transformStyle}
+            ref={trackRef}
+            className="flex will-change-transform"
+            style={{ 
+              gap: `${CARD_GAP}px`,
+              width: `${displayItems.length * SLOT_WIDTH}px`
+            }}
           >
             {displayItems.map((prod, idx) => {
-              // Extract primary clean image (4-angles first image)
+              // Primary image extraction
               let primaryImg = DEFAULT_FALLBACK_IMAGE;
               if (Array.isArray(prod.images) && prod.images.length > 0 && prod.images[0]) {
                 primaryImg = prod.images[0];
@@ -313,15 +267,15 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
 
               const formattedImg = formatImageSrc(primaryImg, DEFAULT_FALLBACK_IMAGE);
               const displayName = prod.productName || prod.name || 'Hardware Product';
-              const displayCategory = prod.categoryName || prod.category || 'Architectural Hardware';
+              const displayCategory = prod.categoryName || prod.category || 'Architectural';
               const displaySku = prod.sku || `RHC-${prod.id.slice(-4)}`;
               const imagesCount = Array.isArray(prod.images) && prod.images.length > 0 ? prod.images.length : 4;
 
               return (
                 <div 
                   key={`${prod.id}-${idx}`}
-                  style={{ width: `${cardWidthPercent}%`, flexShrink: 0 }}
-                  className="px-2 sm:px-2.5"
+                  style={{ width: `${CARD_WIDTH}px`, minWidth: `${CARD_WIDTH}px`, maxWidth: `${CARD_WIDTH}px`, flexShrink: 0 }}
+                  className="flex-shrink-0"
                 >
                   <div
                     onClick={() => onSelectProduct(prod)}
@@ -330,29 +284,33 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
                       const safeTitle = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-');
                       downloadWithWatermark(formattedImg, `${displaySku}-${safeTitle}.jpg`);
                     }}
-                    className="h-full bg-[#0a2e1f] border-2 border-[#C8A165]/50 hover:border-[#E0C18B] rounded-2xl p-3.5 sm:p-4 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer hover:-translate-y-1 relative"
+                    className="w-[200px] h-full bg-[#0a2e1f] border-2 border-[#C8A165]/60 hover:border-[#E0C18B] rounded-2xl p-3.5 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer hover:-translate-y-1 relative select-none"
                     title={`${displayName} - Click to view 4 photos`}
                   >
                     {/* Top Meta: SKU Badge & Category */}
-                    <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <span className="text-[10px] sm:text-[11px] font-mono font-bold text-[#E0C18B] bg-black/50 px-2 py-0.5 rounded border border-[#C8A165]/40 truncate max-w-[120px]">
+                    <div className="flex items-center justify-between gap-1.5 mb-2">
+                      <span className="text-[10px] font-mono font-bold text-[#E0C18B] bg-black/60 px-2 py-0.5 rounded border border-[#C8A165]/40 truncate max-w-[95px]">
                         {displaySku}
                       </span>
 
-                      <span className="text-[10px] sm:text-[11px] font-bold text-[#C8A165] uppercase tracking-wider truncate max-w-[120px]">
+                      <span className="text-[10px] font-bold text-[#C8A165] uppercase tracking-wider truncate max-w-[90px]">
                         {displayCategory}
                       </span>
                     </div>
 
-                    {/* Clean Product Image Container (White Background) */}
+                    {/* White Square 160x160 Uniform Image Box with object-fit: contain */}
                     <div 
-                      className="relative aspect-square w-full h-[280px] bg-white rounded-xl p-[12px] flex items-center justify-center overflow-hidden border border-[#C8A165]/30 mb-3 shadow-inner group-hover:border-[#C8A165] transition-colors"
+                      className="w-[160px] h-[160px] mx-auto bg-white rounded-xl p-2 flex items-center justify-center overflow-hidden border border-[#C8A165]/40 mb-3 shadow-inner group-hover:border-[#E0C18B] transition-colors relative"
                       style={{
-                        width: '100%',
-                        height: '280px',
+                        width: '160px',
+                        height: '160px',
                         aspectRatio: '1 / 1',
                         backgroundColor: '#FFFFFF',
-                        padding: '12px'
+                        borderRadius: '12px',
+                        padding: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}
                     >
                       <img
@@ -372,32 +330,32 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
                         loading="lazy"
                       />
 
-                      {/* 4 Views / Clean Pill Badge */}
-                      <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/80 text-[#E0C18B] text-[10px] font-bold pointer-events-none z-10 border border-[#C8A165]/30 flex items-center gap-1">
+                      {/* 4 Views Pill Badge */}
+                      <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/80 text-[#E0C18B] text-[9px] font-bold pointer-events-none z-10 border border-[#C8A165]/40 flex items-center gap-1">
                         <Layers className="w-2.5 h-2.5 text-[#C8A165]" />
                         <span>{imagesCount} VIEWS</span>
                       </div>
 
                       {/* Hover Overlay Action */}
                       <div className="absolute inset-0 bg-[#0A2E24]/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
-                        <span className="px-3 py-1.5 rounded-lg bg-[#0A2E24] text-[#E0C18B] text-xs font-bold border border-[#C8A165] flex items-center gap-1.5 shadow-lg">
-                          <Eye className="w-3.5 h-3.5" />
+                        <span className="px-2.5 py-1 rounded-lg bg-[#0A2E24] text-[#E0C18B] text-[11px] font-bold border border-[#C8A165] flex items-center gap-1 shadow-md">
+                          <Eye className="w-3 h-3" />
                           <span>View Detail</span>
                         </span>
                       </div>
                     </div>
 
-                    {/* Product Name & Footer Action */}
+                    {/* Product Name & Footer */}
                     <div className="space-y-2 flex-1 flex flex-col justify-between">
-                      <h3 className="font-bold text-white text-xs sm:text-sm line-clamp-2 leading-snug group-hover:text-[#E0C18B] transition-colors min-h-[2.5rem]">
+                      <h3 className="font-bold text-white text-xs line-clamp-2 min-h-[2rem] leading-snug group-hover:text-[#E0C18B] transition-colors text-left">
                         {displayName}
                       </h3>
 
-                      <div className="pt-2 border-t border-[#C8A165]/30 flex items-center justify-between text-xs text-[#E0C18B]">
-                        <span className="font-semibold text-[11px] text-gray-300 group-hover:text-white transition-colors">
+                      <div className="pt-2 border-t border-[#C8A165]/30 flex items-center justify-between text-[10px] text-[#E0C18B]">
+                        <span className="font-semibold text-gray-300 group-hover:text-white transition-colors">
                           High Durability
                         </span>
-                        <span className="text-[#C8A165] font-bold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                        <span className="text-[#C8A165] font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
                           <span>4 Angles</span>
                           <span>&rarr;</span>
                         </span>
@@ -411,19 +369,20 @@ export function FeaturedProductsCarousel({ onSelectProduct }: FeaturedProductsCa
         </div>
 
         {/* Carousel Footer Indicator */}
-        <div className="mt-4 flex items-center justify-between text-[11px] text-gray-400">
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
           <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#C8A165] animate-pulse" />
-            <span>Hover on any card to pause auto-scroll • Right-click or open to download</span>
+            <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C8A165] animate-pulse" />
+            <span>Hover on any card to pause auto-scroll &bull; Click to open 4-angle views &bull; Right-click to download</span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 text-[#E0C18B] font-mono">
-            <span>Showing latest {baseItems.length} items</span>
+          <div className="flex items-center gap-1.5 text-[#E0C18B] font-mono text-[11px]">
+            <span>12 Featured Items &bull; Infinite 28s Loop</span>
           </div>
         </div>
 
       </div>
-    </section>
+    </div>
   );
 }
+
 export default FeaturedProductsCarousel;
