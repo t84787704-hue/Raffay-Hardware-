@@ -129,6 +129,19 @@ export function HardwareCatalog({
     return list;
   }, [displayableProducts, selectedCategory, debouncedQuery, searchSuggestions]);
 
+  // Arrange category pills so Kitchen Accessories comes immediately after Top Trending
+  const categoryPillsList = useMemo(() => {
+    const list = [...categories];
+    const kitchenIdx = list.findIndex(
+      c => c.id === 'kitchen-accessories' || c.name.toLowerCase().includes('kitchen accessories')
+    );
+    if (kitchenIdx > -1) {
+      const [kitchenCat] = list.splice(kitchenIdx, 1);
+      return [kitchenCat, ...list];
+    }
+    return list;
+  }, [categories]);
+
   // Clean active category name
   const activeCategoryName = useMemo(() => {
     if (selectedCategory === 'top-trending') return 'Top Trending';
@@ -221,21 +234,24 @@ export function HardwareCatalog({
                   All Hardware ({displayableProducts.length})
                 </button>
 
-                {/* 2. 🔥 Top Trending Pill (12) - Inserted right after All Hardware and before Kitchen Accessories */}
+                {/* 2. 🔥 Top Trending (12) Pill - Inserted right after All Hardware and before Kitchen Accessories */}
                 <button
                   onClick={() => setSelectedCategory('top-trending')}
                   className={`px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                     selectedCategory === 'top-trending'
-                      ? 'bg-[#d4a574] text-[#0a2e1f] border-2 border-[#FFE8A3] shadow-[0_0_18px_rgba(212,165,116,0.85)] scale-105 ring-2 ring-[#C8A165]/80 font-extrabold'
-                      : 'bg-[#d4a574]/85 hover:bg-[#d4a574] text-[#0a2e1f] border border-[#d4a574] hover:shadow-md hover:scale-[1.02]'
+                      ? 'bg-[#d4a574] text-[#0a2e1f] border-2 border-[#C8A165] shadow-[0_0_18px_rgba(212,165,116,0.9)] ring-2 ring-[#d4a574]/80 scale-105 font-extrabold'
+                      : 'bg-[#d4a574] text-[#0a2e1f] hover:brightness-105 border border-[#d4a574] opacity-90 hover:opacity-100 hover:shadow-md'
                   }`}
                 >
-                  🔥 Top Trending ({trendingProducts.length})
+                  🔥 Top Trending (12)
                 </button>
 
-                {/* 3. Category Pills (Kitchen Accessories, Furniture Hardware, etc.) */}
-                {categories.map((cat) => {
+                {/* 3. Category Pills (Kitchen Accessories immediately after Top Trending, followed by other categories) */}
+                {categoryPillsList.map((cat) => {
                   const isSelected = selectedCategory === cat.id || selectedCategory === cat.name;
+                  const isKitchen = cat.id === 'kitchen-accessories' || cat.name.toLowerCase().includes('kitchen accessories');
+                  const displayName = isKitchen ? 'Kitchen Accessories' : (cat.shortName || cat.name);
+
                   return (
                     <button
                       key={cat.id}
@@ -246,7 +262,7 @@ export function HardwareCatalog({
                           : 'bg-black/30 text-gray-200 hover:bg-black/50 hover:text-[#E0C18B] border border-white/10'
                       }`}
                     >
-                      {cat.shortName || cat.name}
+                      {displayName}
                     </button>
                   );
                 })}
@@ -258,8 +274,9 @@ export function HardwareCatalog({
           {/* ============================================================ */}
           {/* VIEW SWITCHER: TOP TRENDING CAROUSEL vs NORMAL 3-COL GRID   */}
           {/* ============================================================ */}
-          {selectedCategory === 'top-trending' && !searchQuery ? (
+          {selectedCategory === 'top-trending' ? (
             /* TOP TRENDING VIEW: ONLY FeaturedProductsCarousel with 12 items, auto-scrolling 28s */
+            /* No static grid, no other content in this view - Sirf aur sirf scrolling pics */
             <FeaturedProductsCarousel 
               products={trendingProducts}
               onSelectProduct={handleProductClick} 
@@ -275,11 +292,13 @@ export function HardwareCatalog({
                   <span className="text-gray-600 font-normal">({filteredProducts.length} items found)</span>
                 </div>
 
-                {(selectedCategory !== 'all' || searchQuery) && (
+                {(selectedCategory !== 'all' || debouncedQuery) && (
                   <button
                     onClick={() => {
                       setSelectedCategory('top-trending');
-                      setSearchQuery('');
+                      setLocalSearchInput('');
+                      setDebouncedQuery('');
+                      if (propSetSearchQuery) propSetSearchQuery('');
                     }}
                     className="text-[#0A2E24] hover:underline flex items-center gap-1 cursor-pointer"
                   >
@@ -302,7 +321,9 @@ export function HardwareCatalog({
                   <button
                     onClick={() => {
                       setSelectedCategory('top-trending');
-                      setSearchQuery('');
+                      setLocalSearchInput('');
+                      setDebouncedQuery('');
+                      if (propSetSearchQuery) propSetSearchQuery('');
                     }}
                     className="px-4 py-2 rounded-xl bg-[#0A2E24] text-[#E0C18B] text-xs font-bold hover:bg-[#124A3B] transition-colors cursor-pointer shadow-md"
                   >
