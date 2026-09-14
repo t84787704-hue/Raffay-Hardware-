@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Package, 
   Search, 
@@ -14,6 +14,8 @@ import {
 import { Category, ProductItem } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
 import { Product3ImagesGalleryModal } from './Product3ImagesGalleryModal';
+import { SearchPicsDropdown } from './SearchPicsDropdown';
+import { useProductSearch } from '../utils/productSearch';
 import { formatImageSrc, handleImageError, doesProductMatchCategory, DEFAULT_FALLBACK_IMAGE, downloadWithWatermark } from '../utils/imageUtils';
 
 interface CategoryProductPageProps {
@@ -39,7 +41,10 @@ export function CategoryProductPage({
     isAdmin
   } = useHardwareStore();
 
-  const [localSearch, setLocalSearch] = useState('');
+  const [localSearch, setLocalSearch] = useState(parentSearchQuery || '');
+  const [debouncedQuery, setDebouncedQuery] = useState(parentSearchQuery || '');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [draggedProdIndex, setDraggedProdIndex] = useState<number | null>(null);
   const [touchDragProdIndex, setTouchDragProdIndex] = useState<number | null>(null);
   const [reorderStatusMsg, setReorderStatusMsg] = useState<string | null>(null);
@@ -48,20 +53,42 @@ export function CategoryProductPage({
   // 4-Images Gallery Modal
   const [galleryProduct, setGalleryProduct] = useState<ProductItem | null>(null);
 
+  // Click outside to close search suggestions dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // 200ms debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(localSearch);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [localSearch]);
+
   // All products belonging to this category
   const categoryProducts = useMemo(() => {
     return products.filter(p => doesProductMatchCategory(p, category));
   }, [products, category]);
 
-  // Filtered products
-  const filteredProducts = useMemo(() => {
-    const query = (localSearch || parentSearchQuery).toLowerCase().trim();
+  // Fuse.js fuzzy search with threshold 0.4 and 200ms debounce
+  const { results: searchSuggestions } = useProductSearch(categoryProducts, localSearch, 200);
 
-    return categoryProducts.filter(item => {
-      const nameVal = item.productName || item.name || '';
-      return !query || nameVal.toLowerCase().includes(query);
-    });
-  }, [categoryProducts, localSearch, parentSearchQuery]);
+  // Filtered products: if query active, match Fuse fuzzy results; otherwise show all category products
+  const filteredProducts = useMemo(() => {
+    if (!debouncedQuery.trim()) {
+      return categoryProducts;
+    }
+    const matchedIds = new Set(searchSuggestions.map(p => p.id));
+    return categoryProducts.filter(item => matchedIds.has(item.id));
+  }, [categoryProducts, debouncedQuery, searchSuggestions]);
 
   // Handle single-step Move Up (Opar) or Move Down (Niche)
   const handleMoveProductStep = async (index: number, direction: 'prev' | 'next', e?: React.MouseEvent) => {
@@ -254,23 +281,41 @@ export function CategoryProductPage({
         {/* 2. SEARCH BAR & SHOWING PRODUCTS COUNT (Directly below Main Pic / Title) */}
         <div className="sticky top-[53px] z-10 p-3 sm:p-4 rounded-xl bg-[#DCC9A8] border border-[#C5B08F] shadow-sm flex flex-col gap-2.5">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-80">
+            <div ref={searchContainerRef} className="relative w-full sm:w-80">
               <input
                 id="category-search-input"
                 type="text"
                 value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onChange={(e) => {
+                  setLocalSearch(e.target.value);
+                  setIsSearchFocused(true);
+                }}
                 placeholder={`Search in ${category.name}...`}
                 className="w-full pl-9 pr-8 py-2 rounded-lg bg-white border border-[#C5B08F] text-xs text-[#0A2E24] placeholder-gray-500 focus:outline-none focus:border-[#0A2E24] focus:ring-1 focus:ring-[#0A2E24]"
               />
-              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               {localSearch && (
                 <button
-                  onClick={() => setLocalSearch('')}
+                  onClick={() => {
+                    setLocalSearch('');
+                    setIsSearchFocused(false);
+                  }}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-xs cursor-pointer"
                 >
                   &times;
                 </button>
+              )}
+
+              {/* Suggestions Dropdown: ONLY product pics in 4-column grid, max 12 pics, click opens 4-angle modal */}
+              {isSearchFocused && localSearch.trim().length > 0 && (
+                <SearchPicsDropdown
+                  products={searchSuggestions}
+                  onSelectProduct={(prod) => {
+                    setIsSearchFocused(false);
+                    setGalleryProduct(prod);
+                  }}
+                />
               )}
             </div>
 
