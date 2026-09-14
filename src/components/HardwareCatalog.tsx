@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Filter, X, ShoppingBag, Eye, Layers, Sparkles } from 'lucide-react';
 import { ProductItem, Category } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
 import { FeaturedProductsCarousel } from './FeaturedProductsCarousel';
 import { Product3ImagesGalleryModal } from './Product3ImagesGalleryModal';
+import { SearchPicsDropdown } from './SearchPicsDropdown';
+import { useProductSearch } from '../utils/productSearch';
 import { 
   formatImageSrc, 
   handleImageError, 
@@ -17,6 +19,8 @@ interface HardwareCatalogProps {
   initialCategory?: string;
   onSelectProduct?: (product: ProductItem) => void;
   onOpenQuoteModal?: () => void;
+  searchQuery?: string;
+  setSearchQuery?: (query: string) => void;
 }
 
 /**
@@ -29,12 +33,48 @@ interface HardwareCatalogProps {
 export function HardwareCatalog({
   initialCategory = 'top-trending',
   onSelectProduct,
-  onOpenQuoteModal
+  onOpenQuoteModal,
+  searchQuery: propSearchQuery,
+  setSearchQuery: propSetSearchQuery
 }: HardwareCatalogProps) {
   const { categories, products } = useHardwareStore();
   const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [localSearchInput, setLocalSearchInput] = useState<string>(propSearchQuery ?? '');
+  const [debouncedQuery, setDebouncedQuery] = useState<string>(propSearchQuery ?? '');
+  const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [galleryProduct, setGalleryProduct] = useState<ProductItem | null>(null);
+
+  // Sync external search query
+  useEffect(() => {
+    if (propSearchQuery !== undefined) {
+      setLocalSearchInput(propSearchQuery);
+      setDebouncedQuery(propSearchQuery);
+    }
+  }, [propSearchQuery]);
+
+  // 200ms debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(localSearchInput);
+      if (propSetSearchQuery) {
+        propSetSearchQuery(localSearchInput);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [localSearchInput, propSetSearchQuery]);
+
+  // Click outside listener to close search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleProductClick = (prod: ProductItem) => {
     setGalleryProduct(prod);
@@ -68,25 +108,26 @@ export function HardwareCatalog({
     return [...featured, ...remaining].slice(0, 12);
   }, [displayableProducts]);
 
-  // Filter products based on selected category & search query
-  const filteredProducts = useMemo(() => {
-    return displayableProducts.filter((item) => {
-      const matchesCategory = 
-        !selectedCategory || selectedCategory === 'all' || doesProductMatchCategory(item, selectedCategory);
-      
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch = 
-        !q ||
-        (item.productName || item.name || '').toLowerCase().includes(q) ||
-        (item.categoryName || '').toLowerCase().includes(q) ||
-        (item.sku || '').toLowerCase().includes(q) ||
-        (item.material || '').toLowerCase().includes(q) ||
-        (item.finish || '').toLowerCase().includes(q) ||
-        (item.tags || []).some(t => t.toLowerCase().includes(q));
+  // Fuse.js fuzzy search with threshold 0.4 and 200ms debounce
+  const { results: searchSuggestions } = useProductSearch(displayableProducts, localSearchInput, 200);
 
-      return matchesCategory && matchesSearch;
-    });
-  }, [displayableProducts, selectedCategory, searchQuery]);
+  // Filter products based on selected category & search query (Fuse.js fuzzy search with 0.4 threshold)
+  const filteredProducts = useMemo(() => {
+    let list = displayableProducts;
+
+    // Filter by category if not 'all' or 'top-trending'
+    if (selectedCategory && selectedCategory !== 'all' && selectedCategory !== 'top-trending') {
+      list = list.filter(item => doesProductMatchCategory(item, selectedCategory));
+    }
+
+    // If debounced query is present, use Fuse.js results
+    if (debouncedQuery.trim()) {
+      const matchedIds = new Set(searchSuggestions.map(p => p.id));
+      return list.filter(item => matchedIds.has(item.id));
+    }
+
+    return list;
+  }, [displayableProducts, selectedCategory, debouncedQuery, searchSuggestions]);
 
   // Clean active category name
   const activeCategoryName = useMemo(() => {
@@ -124,22 +165,43 @@ export function HardwareCatalog({
               </div>
 
               {/* Instant Search Bar */}
-              <div className="w-full md:w-80 relative">
+              <div ref={searchContainerRef} className="w-full md:w-80 relative">
                 <Search className="w-4 h-4 text-[#C8A165] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={localSearchInput}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onChange={(e) => {
+                    setLocalSearchInput(e.target.value);
+                    setIsSearchFocused(true);
+                  }}
                   placeholder="Search SKU, name, material..."
                   className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-black/40 border border-[#C8A165]/50 text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-2 focus:ring-[#C8A165]"
                 />
-                {searchQuery && (
+                {localSearchInput && (
                   <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    onClick={() => {
+                      setLocalSearchInput('');
+                      setDebouncedQuery('');
+                      if (propSetSearchQuery) propSetSearchQuery('');
+                      setIsSearchFocused(false);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white cursor-pointer"
+                    title="Clear search"
                   >
                     <X className="w-4 h-4" />
                   </button>
+                )}
+
+                {/* Search Suggestions Dropdown: ONLY product pics, max 12, 4 columns, 80x80 uniform white boxes, click opens 4-angle modal */}
+                {isSearchFocused && localSearchInput.trim().length > 0 && (
+                  <SearchPicsDropdown
+                    products={searchSuggestions}
+                    onSelectProduct={(prod) => {
+                      setIsSearchFocused(false);
+                      handleProductClick(prod);
+                    }}
+                  />
                 )}
               </div>
             </div>

@@ -283,6 +283,8 @@ function HardwareCatalogRoute() {
         <HardwareCatalog
           onSelectProduct={(prod) => setSelectedProductForGallery(prod)}
           onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
         />
       </main>
 

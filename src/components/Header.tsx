@@ -25,6 +25,9 @@ import { Category, ProductItem } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
 import { scrollAndHighlight } from '../utils/searchHighlight';
 
+import { SearchPicsDropdown } from './SearchPicsDropdown';
+import { useProductSearch } from '../utils/productSearch';
+
 interface HeaderProps {
   onOpenQuoteModal: () => void;
   inquiryCount: number;
@@ -48,6 +51,20 @@ export function Header({
   const location = useLocation();
   const { categories, products, isRHCAdmin, isAdmin, logout, activeLogoUrl } = useHardwareStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Local search input for instantaneous typing & 200ms debounce
+  const [searchInput, setSearchInput] = useState(searchQuery);
+
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchInput, setSearchQuery]);
 
   const handleAdminLogout = () => {
     logout();
@@ -109,72 +126,15 @@ export function Header({
     window.open(`tel:${COMPANY_INFO.phone}`, '_self');
   };
 
-  // Live matching categories & products for search dropdown (case-insensitive)
-  const { matchingCategories, matchingProducts } = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return { matchingCategories: [], matchingProducts: [] };
+  // Fuse.js fuzzy search logic with threshold 0.4 and 200ms debounce
+  const { results: matchingProducts } = useProductSearch(products, searchInput, 200);
 
-    const matchedCats = categories.filter(c => 
-      (c.name && c.name.toLowerCase().includes(q)) ||
-      (c.shortName && c.shortName.toLowerCase().includes(q)) ||
-      (c.badge && c.badge.toLowerCase().includes(q)) ||
-      (c.material && c.material.toLowerCase().includes(q)) ||
-      (c.description && c.description.toLowerCase().includes(q))
-    ).slice(0, 4);
+  const hasSearchHits = (isSearchFocused || isMobileSearchFocused) && searchInput.trim().length > 0;
 
-    const matchedProds = products.filter(p => 
-      (p.name && p.name.toLowerCase().includes(q)) ||
-      (p.sku && p.sku.toLowerCase().includes(q)) ||
-      (p.categoryName && p.categoryName.toLowerCase().includes(q)) ||
-      (p.material && p.material.toLowerCase().includes(q)) ||
-      (p.finish && p.finish.toLowerCase().includes(q)) ||
-      (p.sizeOrSpec && p.sizeOrSpec.toLowerCase().includes(q)) ||
-      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
-    ).slice(0, 8);
-
-    return { matchingCategories: matchedCats, matchingProducts: matchedProds };
-  }, [searchQuery, categories, products]);
-
-  const hasSearchHits = (isSearchFocused || isMobileSearchFocused) && searchQuery.trim().length > 0;
-
-  // Handle clicking a category from search
-  const handleSelectCategoryItem = (cat: Category) => {
+  // Handle clicking a product pic from search -> opens 4-angle product modal
+  const handleSelectProductPic = (prod: ProductItem) => {
     setIsSearchFocused(false);
     setIsMobileSearchFocused(false);
-    
-    if (location.pathname.startsWith('/category/')) {
-      if (onSelectCategoryObject) {
-        onSelectCategoryObject(cat);
-      } else {
-        navigate(`/category/${cat.id}`);
-      }
-      scrollAndHighlight('category-header', { delay: 150 });
-    } else {
-      onSelectCategory(cat.id);
-      scrollAndHighlight(`category-card-${cat.id}`, { delay: 100 });
-    }
-  };
-
-  // Handle clicking a product from search
-  const handleSelectProductItem = (prod: ProductItem) => {
-    setIsSearchFocused(false);
-    setIsMobileSearchFocused(false);
-
-    if (location.pathname.startsWith('/category/')) {
-      const currentCatId = location.pathname.split('/category/')[1];
-      if (prod.categoryId === currentCatId) {
-        scrollAndHighlight(`product-card-${prod.id}`, { delay: 80 });
-      } else {
-        navigate(`/category/${prod.categoryId}`);
-        setTimeout(() => {
-          scrollAndHighlight(`product-card-${prod.id}`, { delay: 200, retries: 8 });
-        }, 100);
-      }
-    } else {
-      // On homepage, ensure category is visible (or 'all')
-      onSelectCategory('all');
-      scrollAndHighlight(`product-card-${prod.id}`, { delay: 100, retries: 8 });
-    }
 
     if (onSelectProductObject) {
       onSelectProductObject(prod);
@@ -186,9 +146,7 @@ export function Header({
     if (e.key === 'Enter') {
       e.preventDefault();
       if (matchingProducts.length > 0) {
-        handleSelectProductItem(matchingProducts[0]);
-      } else if (matchingCategories.length > 0) {
-        handleSelectCategoryItem(matchingCategories[0]);
+        handleSelectProductPic(matchingProducts[0]);
       } else {
         // Scroll to product catalog to show filtered/empty results
         const catalogEl = document.getElementById('products');
@@ -218,131 +176,12 @@ export function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Search dropdown contents renderer
+  // Search dropdown contents renderer - ONLY product pics, no text, max 12 pics in 4-column grid
   const renderSearchResultsDropdown = () => (
-    <div className="absolute left-0 right-0 top-full mt-2 bg-[#0A2E24] border-2 border-[#C8A165] rounded-2xl shadow-2xl overflow-hidden z-50 text-left max-h-[500px] overflow-y-auto backdrop-blur-md">
-      
-      {/* Category Results */}
-      {matchingCategories.length > 0 && (
-        <div className="p-3 border-b border-white/10">
-          <div className="text-[10px] font-extrabold text-[#C8A165] uppercase tracking-wider px-1 pb-1.5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5" />
-              <span>Matching Categories ({matchingCategories.length})</span>
-            </div>
-            <span className="text-[9px] text-gray-400 font-normal">Click to view line</span>
-          </div>
-          <div className="space-y-1">
-            {matchingCategories.map(cat => (
-              <div
-                key={cat.id}
-                onClick={() => handleSelectCategoryItem(cat)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-[#C8A165] hover:text-[#0A2E24] text-white flex items-center justify-between gap-2 cursor-pointer group transition-all"
-              >
-                <div className="flex items-center gap-2.5 overflow-hidden">
-                  <img 
-                    src={cat.image} 
-                    alt={cat.name} 
-                    className="w-9 h-9 rounded-lg object-cover border border-[#C8A165]/50 flex-shrink-0" 
-                  />
-                  <div className="truncate">
-                    <div className="text-xs font-bold truncate group-hover:text-[#0A2E24]">{cat.name}</div>
-                    <div className="text-[10px] text-gray-300 group-hover:text-[#0A2E24]/80 flex items-center gap-1.5">
-                      <span>{cat.badge || 'Wholesale Line'}</span>
-                      <span>&bull;</span>
-                      <span>{cat.material || 'Solid Brass / Zinc'}</span>
-                    </div>
-                  </div>
-                </div>
-                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-[#061D17] text-[#E0C18B] group-hover:bg-[#0A2E24] group-hover:text-white flex-shrink-0 flex items-center gap-1 shadow-sm">
-                  <span>View</span>
-                  <ArrowRight className="w-3 h-3" />
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Product & SKU Results */}
-      {matchingProducts.length > 0 && (
-        <div className="p-3">
-          <div className="text-[10px] font-extrabold text-[#C8A165] uppercase tracking-wider px-1 pb-1.5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Package className="w-3.5 h-3.5" />
-              <span>Products & SKUs ({matchingProducts.length})</span>
-            </div>
-            <span className="text-[9px] text-gray-400 font-normal">Press Enter to select</span>
-          </div>
-          <div className="space-y-1">
-            {matchingProducts.map(prod => (
-              <div
-                key={prod.id}
-                onClick={() => handleSelectProductItem(prod)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-[#C8A165] hover:text-[#0A2E24] text-white flex items-center justify-between gap-2 cursor-pointer group transition-all"
-              >
-                <div className="flex items-center gap-2.5 overflow-hidden">
-                  <img 
-                    src={prod.images?.front || prod.image} 
-                    alt={prod.name} 
-                    className="w-10 h-10 rounded-lg object-cover border border-[#C8A165]/50 flex-shrink-0" 
-                  />
-                  <div className="truncate">
-                    <div className="text-xs font-bold truncate group-hover:text-[#0A2E24]">{prod.name}</div>
-                    <div className="text-[10px] text-gray-300 group-hover:text-[#0A2E24]/80 flex items-center gap-1.5">
-                      <span className="font-mono font-bold text-[#E0C18B] group-hover:text-[#0A2E24] bg-black/40 group-hover:bg-white/40 px-1 rounded">
-                        {prod.sku}
-                      </span>
-                      <span>&bull;</span>
-                      <span className="truncate">{prod.categoryName || 'Hardware'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-xs font-extrabold text-[#25D366] group-hover:text-[#0A2E24]">
-                    Rs. {prod.wholesalePrice?.toLocaleString()}
-                  </div>
-                  <div className="text-[9px] text-gray-300 group-hover:text-[#0A2E24]/80 font-medium">
-                    {prod.inStock ? 'In Stock' : 'Factory Order'}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* No Products Found Fallback */}
-      {matchingCategories.length === 0 && matchingProducts.length === 0 && (
-        <div className="p-6 text-center text-gray-300 flex flex-col items-center justify-center space-y-2">
-          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10 text-gray-400">
-            <Search className="w-5 h-5" />
-          </div>
-          <div className="text-sm font-bold text-white">No products found</div>
-          <div className="text-xs text-gray-400 max-w-xs">
-            No categories, products, or SKUs matching &ldquo;<span className="text-[#E0C18B] font-semibold">{searchQuery}</span>&rdquo;.
-          </div>
-          <button
-            onClick={() => setSearchQuery('')}
-            className="mt-1 text-xs text-[#C8A165] hover:underline font-semibold"
-          >
-            Clear Search
-          </button>
-        </div>
-      )}
-
-      {/* Dropdown Footer Tip */}
-      {(matchingCategories.length > 0 || matchingProducts.length > 0) && (
-        <div className="px-3 py-2 bg-[#061D17] border-t border-white/10 flex items-center justify-between text-[10px] text-gray-400">
-          <span>Click any item to highlight &amp; view wholesale specs</span>
-          <span className="flex items-center gap-1 text-[#E0C18B]">
-            <CornerDownLeft className="w-3 h-3" />
-            <span>Enter</span>
-          </span>
-        </div>
-      )}
-
-    </div>
+    <SearchPicsDropdown
+      products={matchingProducts}
+      onSelectProduct={handleSelectProductPic}
+    />
   );
 
   return (
@@ -477,20 +316,21 @@ export function Header({
               <input
                 id="header-search-input"
                 type="text"
-                value={searchQuery}
+                value={searchInput}
                 onFocus={() => setIsSearchFocused(true)}
                 onChange={(e) => {
-                  setSearchQuery(e.target.value);
+                  setSearchInput(e.target.value);
                   setIsSearchFocused(true);
                 }}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Search categories & SKUs..."
+                placeholder="Search products & SKUs..."
                 className="w-full bg-[#061D17] border border-[#C8A165]/40 rounded-lg pl-9 pr-7 py-1.5 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#C8A165] focus:ring-1 focus:ring-[#C8A165] transition-all"
               />
               <Search className="w-4 h-4 text-[#C8A165] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              {searchQuery && (
+              {searchInput && (
                 <button 
                   onClick={() => {
+                    setSearchInput('');
                     setSearchQuery('');
                     setIsSearchFocused(false);
                   }}
@@ -502,7 +342,7 @@ export function Header({
               )}
 
               {/* Live Search Results Dropdown Overlay */}
-              {isSearchFocused && searchQuery.trim().length > 0 && renderSearchResultsDropdown()}
+              {isSearchFocused && searchInput.trim().length > 0 && renderSearchResultsDropdown()}
             </div>
 
             {/* Quotation / Inquiry Cart Drawer Button */}
@@ -566,20 +406,21 @@ export function Header({
             <input
               id="mobile-search-input"
               type="text"
-              value={searchQuery}
+              value={searchInput}
               onFocus={() => setIsMobileSearchFocused(true)}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
+                setSearchInput(e.target.value);
                 setIsMobileSearchFocused(true);
               }}
               onKeyDown={handleSearchKeyDown}
-              placeholder="Search categories, products & SKUs..."
+              placeholder="Search products & SKUs..."
               className="w-full bg-[#061D17] border border-[#C8A165]/40 rounded-lg pl-9 pr-7 py-2 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#C8A165]"
             />
             <Search className="w-4 h-4 text-[#C8A165] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            {searchQuery && (
+            {searchInput && (
               <button 
                 onClick={() => {
+                  setSearchInput('');
                   setSearchQuery('');
                   setIsMobileSearchFocused(false);
                 }}
@@ -591,7 +432,7 @@ export function Header({
             )}
 
             {/* Mobile Search Results Dropdown Overlay */}
-            {isMobileSearchFocused && searchQuery.trim().length > 0 && renderSearchResultsDropdown()}
+            {isMobileSearchFocused && searchInput.trim().length > 0 && renderSearchResultsDropdown()}
           </div>
         </div>
       </div>
