@@ -464,15 +464,15 @@ export function CategoryProductPage({
                     </div>
                   )}
 
-                  {/* Single Solid Product Image Container (White Background) */}
+                  {/* Single Solid Product Image Container: aspect-[4/5], overflow-hidden, p-0, bg-[#f5f3ef], rounded-t-2xl */}
                   <div 
-                    className="relative w-full h-[280px] aspect-square bg-white flex items-center justify-center p-[12px] overflow-hidden border-b border-[#C5B08F]/60"
+                    className="relative w-full aspect-[4/5] bg-[#f5f3ef] rounded-t-2xl flex items-center justify-center p-0 overflow-hidden border-b border-[#C5B08F]/60"
                     style={{
                       width: '100%',
-                      height: '280px',
-                      aspectRatio: '1 / 1',
-                      backgroundColor: '#FFFFFF',
-                      padding: '12px'
+                      aspectRatio: '4 / 5',
+                      backgroundColor: '#f5f3ef',
+                      padding: 0,
+                      overflow: 'hidden'
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -488,13 +488,10 @@ export function CategoryProductPage({
                       style={{
                         width: '100%',
                         height: '100%',
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                        objectPosition: 'center',
-                        backgroundColor: '#FFFFFF'
+                        objectFit: 'cover',
+                        objectPosition: 'center'
                       }}
-                      className="w-full h-full object-contain object-center bg-white group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                       loading="lazy"
                     />
 

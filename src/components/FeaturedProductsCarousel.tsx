@@ -284,33 +284,18 @@ export function FeaturedProductsCarousel({ products: propProducts, onSelectProdu
                       const safeTitle = displayName.toLowerCase().replace(/[^a-z0-9]/g, '-');
                       downloadWithWatermark(formattedImg, `${displaySku}-${safeTitle}.jpg`);
                     }}
-                    className="w-[200px] h-full bg-[#0a2e1f] border-2 border-[#C8A165]/60 hover:border-[#E0C18B] rounded-2xl p-3.5 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer hover:-translate-y-1 relative select-none"
+                    className="w-[200px] h-full bg-[#0a2e1f] border-2 border-[#C8A165]/60 hover:border-[#E0C18B] rounded-2xl overflow-hidden p-0 shadow-xl hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer hover:-translate-y-1 relative select-none"
                     title={`${displayName} - Click to view 4 photos`}
                   >
-                    {/* Top Meta: SKU Badge & Category */}
-                    <div className="flex items-center justify-between gap-1.5 mb-2">
-                      <span className="text-[10px] font-mono font-bold text-[#E0C18B] bg-black/60 px-2 py-0.5 rounded border border-[#C8A165]/40 truncate max-w-[95px]">
-                        {displaySku}
-                      </span>
-
-                      <span className="text-[10px] font-bold text-[#C8A165] uppercase tracking-wider truncate max-w-[90px]">
-                        {displayCategory}
-                      </span>
-                    </div>
-
-                    {/* White Square 160x160 Uniform Image Box with object-fit: contain */}
+                    {/* Top Hardware Image Display: aspect-[4/5], overflow-hidden, p-0, bg-[#f5f3ef], rounded-t-2xl */}
                     <div 
-                      className="w-[160px] h-[160px] mx-auto bg-white rounded-xl p-2 flex items-center justify-center overflow-hidden border border-[#C8A165]/40 mb-3 shadow-inner group-hover:border-[#E0C18B] transition-colors relative"
+                      className="w-full aspect-[4/5] bg-[#f5f3ef] rounded-t-2xl flex items-center justify-center p-0 overflow-hidden relative group-hover:border-[#E0C18B] transition-colors"
                       style={{
-                        width: '160px',
-                        height: '160px',
-                        aspectRatio: '1 / 1',
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: '12px',
-                        padding: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+                        width: '100%',
+                        aspectRatio: '4 / 5',
+                        backgroundColor: '#f5f3ef',
+                        padding: 0,
+                        overflow: 'hidden'
                       }}
                     >
                       <img
@@ -320,18 +305,25 @@ export function FeaturedProductsCarousel({ products: propProducts, onSelectProdu
                         style={{
                           width: '100%',
                           height: '100%',
-                          maxWidth: '100%',
-                          maxHeight: '100%',
-                          objectFit: 'contain',
-                          objectPosition: 'center',
-                          backgroundColor: '#FFFFFF'
+                          objectFit: 'cover',
+                          objectPosition: 'center'
                         }}
-                        className="w-full h-full object-contain object-center bg-white group-hover:scale-108 transition-transform duration-300 pointer-events-none"
+                        className="w-full h-full object-cover object-center group-hover:scale-108 transition-transform duration-300 pointer-events-none"
                         loading="lazy"
                       />
 
+                      {/* Top Badges (SKU & Category Floating over image) */}
+                      <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 pointer-events-none z-10">
+                        <span className="text-[10px] font-mono font-bold text-[#E0C18B] bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded border border-[#C8A165]/40 truncate max-w-[95px]">
+                          {displaySku}
+                        </span>
+                        <span className="text-[10px] font-bold text-[#E0C18B] bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded border border-[#C8A165]/40 uppercase tracking-wider truncate max-w-[90px]">
+                          {displayCategory}
+                        </span>
+                      </div>
+
                       {/* 4 Views Pill Badge */}
-                      <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/80 text-[#E0C18B] text-[9px] font-bold pointer-events-none z-10 border border-[#C8A165]/40 flex items-center gap-1">
+                      <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded-md bg-black/80 text-[#E0C18B] text-[9px] font-bold pointer-events-none z-10 border border-[#C8A165]/40 flex items-center gap-1">
                         <Layers className="w-2.5 h-2.5 text-[#C8A165]" />
                         <span>{imagesCount} VIEWS</span>
                       </div>
@@ -346,7 +338,7 @@ export function FeaturedProductsCarousel({ products: propProducts, onSelectProdu
                     </div>
 
                     {/* Product Name & Footer */}
-                    <div className="space-y-2 flex-1 flex flex-col justify-between">
+                    <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
                       <h3 className="font-bold text-white text-xs line-clamp-2 min-h-[2rem] leading-snug group-hover:text-[#E0C18B] transition-colors text-left">
                         {displayName}
                       </h3>
