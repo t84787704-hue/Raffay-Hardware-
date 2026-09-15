@@ -131,7 +131,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
       onClick={onClose}
     >
       <div 
-        className="relative w-full max-w-2xl bg-white rounded-2xl sm:rounded-3xl border-2 border-[#C8A165] shadow-2xl overflow-hidden my-auto text-left flex flex-col max-h-[94vh]"
+        className="relative w-full max-w-3xl bg-white rounded-2xl sm:rounded-3xl border-2 border-[#C8A165] shadow-2xl overflow-hidden my-auto text-left flex flex-col max-h-[96vh]"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -155,10 +155,10 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
         </div>
 
         {/* Modal Body: Simplified Single-Column Flow with Clean Visuals */}
-        <div className="overflow-y-auto p-4 sm:p-6 flex flex-col space-y-4">
+        <div className="overflow-y-auto p-4 sm:p-5 flex flex-col space-y-4">
           
           {/* ================= 4-IMAGE GALLERY STAGE ================= */}
-          <div className="bg-[#061D17] p-3.5 sm:p-4 rounded-2xl border border-[#C8A165]/30 flex flex-col space-y-3">
+          <div className="bg-[#061D17] p-3 sm:p-4 rounded-2xl border border-[#C8A165]/30 flex flex-col space-y-3">
             
             {/* View Indicator Pill */}
             <div className="flex items-center justify-between text-white px-1">
@@ -174,12 +174,14 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
               </span>
             </div>
 
-            {/* Main Stage Big Image with Swipe & Zoom */}
+            {/* Main Stage Big Image with Swipe & Zoom: bg-[#0a2e1f] p-0 overflow-hidden w-full h-[65vh] md:h-[70vh] rounded-xl */}
             <div 
-              className="relative aspect-square w-full rounded-xl overflow-hidden bg-white border-2 border-[#C8A165]/40 flex items-center justify-center group shadow-inner touch-pan-y select-none p-[12px]"
+              className="relative w-full h-[65vh] md:h-[70vh] bg-[#0a2e1f] p-0 overflow-hidden rounded-xl border-2 border-[#C8A165]/50 flex items-center justify-center group shadow-2xl touch-pan-y select-none"
               style={{
-                backgroundColor: '#FFFFFF',
-                padding: '12px'
+                width: '100%',
+                backgroundColor: '#0a2e1f',
+                padding: 0,
+                overflow: 'hidden'
               }}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
@@ -196,14 +198,11 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                 style={{
                   width: '100%',
                   height: '100%',
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                  objectPosition: 'center',
-                  backgroundColor: '#FFFFFF'
+                  objectFit: 'cover',
+                  objectPosition: 'center'
                 }}
-                className={`w-full h-full object-contain object-center bg-white transition-all duration-300 ${
-                  isZoomed ? 'scale-175 cursor-zoom-out z-10' : 'group-hover:scale-105 cursor-zoom-in'
+                className={`w-full h-full object-cover object-center transition-all duration-300 ${
+                  isZoomed ? 'scale-150 cursor-zoom-out z-10' : 'group-hover:scale-105 cursor-zoom-in'
                 }`}
                 onClick={() => setIsZoomed(!isZoomed)}
                 onContextMenu={(e) => {
@@ -212,7 +211,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                 }}
               />
 
-              {/* Quick Download Button (top-right overlay) */}
+              {/* Quick Download Button (top-right overlay on image) */}
               <button
                 type="button"
                 disabled={isDownloading}
@@ -220,7 +219,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                   e.stopPropagation();
                   handleDownloadImage();
                 }}
-                className="absolute top-2.5 right-2.5 bg-[#0A2E24]/85 hover:bg-[#0A2E24] text-[#E0C18B] px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1.5 backdrop-blur-sm transition-all cursor-pointer z-20 shadow-md border border-[#C8A165]/50 disabled:opacity-50"
+                className="absolute top-3 right-3 bg-[#0A2E24]/90 hover:bg-[#0A2E24] text-[#E0C18B] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all cursor-pointer z-20 shadow-xl border border-[#C8A165]/60 hover:scale-105 active:scale-95 disabled:opacity-50"
                 title="Download image with RHC watermark"
               >
                 {isDownloading ? (
@@ -228,7 +227,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                 ) : (
                   <Download className="w-3.5 h-3.5 text-[#C8A165]" />
                 )}
-                <span className="font-bold">Download</span>
+                <span>Download</span>
               </button>
 
               {/* Prev & Next Arrow Buttons */}
@@ -239,10 +238,10 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                       e.stopPropagation();
                       handlePrev();
                     }}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-[#C8A165] hover:text-[#0A2E24] text-white flex items-center justify-center transition-all opacity-85 hover:opacity-100 cursor-pointer shadow-lg z-20"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-[#C8A165] hover:text-[#0A2E24] text-[#E0C18B] border border-[#C8A165]/40 flex items-center justify-center transition-all opacity-85 hover:opacity-100 cursor-pointer shadow-xl z-20 hover:scale-105"
                     title="Previous Image"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-6 h-6" />
                   </button>
 
                   <button
@@ -250,21 +249,21 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                       e.stopPropagation();
                       handleNext();
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-[#C8A165] hover:text-[#0A2E24] text-white flex items-center justify-center transition-all opacity-85 hover:opacity-100 cursor-pointer shadow-lg z-20"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/70 hover:bg-[#C8A165] hover:text-[#0A2E24] text-[#E0C18B] border border-[#C8A165]/40 flex items-center justify-center transition-all opacity-85 hover:opacity-100 cursor-pointer shadow-xl z-20 hover:scale-105"
                     title="Next Image"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-6 h-6" />
                   </button>
                 </>
               )}
 
-              {/* Zoom Button */}
+              {/* Zoom Button (bottom-right overlay on image) */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsZoomed(!isZoomed);
                 }}
-                className="absolute bottom-2.5 right-2.5 bg-black/70 hover:bg-black text-white px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1.5 backdrop-blur-sm transition-all cursor-pointer z-20 shadow-md border border-white/20"
+                className="absolute bottom-3 right-3 bg-black/80 hover:bg-black text-[#E0C18B] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all cursor-pointer z-20 shadow-xl border border-[#C8A165]/50 hover:scale-105 active:scale-95"
               >
                 {isZoomed ? (
                   <>
@@ -280,12 +279,12 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
               </button>
 
               {/* Mobile Swipe Hint */}
-              <div className="absolute bottom-2.5 left-2.5 sm:hidden bg-black/60 text-white/80 text-[10px] px-2 py-0.5 rounded-md pointer-events-none">
+              <div className="absolute bottom-3 left-3 sm:hidden bg-black/70 text-[#E0C18B] text-[10px] px-2.5 py-1 rounded-md pointer-events-none backdrop-blur-xs border border-[#C8A165]/30">
                 Swipe &larr; &rarr;
               </div>
             </div>
 
-            {/* ================= 4 THUMBNAILS IN A ROW ================= */}
+            {/* ================= 4 THUMBNAILS IN A ROW (FULL COVER) ================= */}
             <div className="grid grid-cols-4 gap-2 pt-1">
               {Array.from({ length: 4 }).map((_, idx) => {
                 const img = imagesList[idx];
@@ -296,7 +295,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                   return (
                     <div
                       key={idx}
-                      className="aspect-square rounded-xl bg-[#0A2E24]/30 border border-white/10 flex flex-col items-center justify-center p-1 opacity-40 text-center"
+                      className="aspect-square rounded-xl bg-[#0a2e1f]/50 border border-white/10 flex flex-col items-center justify-center p-0 overflow-hidden opacity-40 text-center"
                     >
                       <span className="text-[9px] text-gray-400 font-medium">Slot {idx + 1}</span>
                     </div>
@@ -316,7 +315,7 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                       handleDownloadImage(img, `${(prodName || 'rhc-product').toLowerCase().replace(/[^a-z0-9]/g, '-')}-view-${idx + 1}.jpg`);
                     }}
                     title={`${label} (Right-click to download watermarked)`}
-                    className={`relative aspect-square rounded-xl overflow-hidden p-1 transition-all cursor-pointer bg-white border-2 flex flex-col items-center justify-center ${
+                    className={`relative aspect-square rounded-xl overflow-hidden p-0 transition-all cursor-pointer bg-[#0a2e1f] border-2 flex flex-col items-center justify-center ${
                       isActive
                         ? 'border-[#C8A165] ring-2 ring-[#C8A165] shadow-lg scale-102'
                         : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
@@ -328,18 +327,17 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
                       style={{
                         width: '100%',
                         height: '100%',
-                        objectFit: 'contain',
-                        objectPosition: 'center',
-                        backgroundColor: '#FFFFFF'
+                        objectFit: 'cover',
+                        objectPosition: 'center'
                       }}
-                      className="w-full h-full object-contain object-center bg-white"
+                      className="w-full h-full object-cover object-center"
                     />
 
                     {isActive && (
-                      <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#C8A165]" />
+                      <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-[#C8A165] ring-2 ring-[#0A2E24]" />
                     )}
 
-                    <div className="absolute inset-x-0 bottom-0 bg-[#0A2E24]/90 text-[8px] font-bold text-[#E0C18B] text-center py-0.5 truncate px-0.5">
+                    <div className="absolute inset-x-0 bottom-0 bg-[#0A2E24]/90 backdrop-blur-xs text-[8px] font-bold text-[#E0C18B] text-center py-0.5 truncate px-0.5">
                       {idx === 0 ? '1. Front' : idx === 1 ? '2. Side' : idx === 2 ? '3. Back' : '4. Detail'}
                     </div>
                   </button>
