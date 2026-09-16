@@ -464,15 +464,14 @@ export function CategoryProductPage({
                     </div>
                   )}
 
-                  {/* Single Solid Product Image Container (White Background) */}
+                  {/* Single Solid Product Image Container: aspect-[4/3] p-2.5 bg-white overflow-hidden */}
                   <div 
-                    className="relative w-full h-[280px] aspect-square bg-white flex items-center justify-center p-[12px] overflow-hidden border-b border-[#C5B08F]/60"
+                    className="relative w-full aspect-[4/3] p-2.5 bg-white overflow-hidden flex items-center justify-center border-b border-[#C5B08F]/60 shadow-inner"
                     style={{
                       width: '100%',
-                      height: '280px',
-                      aspectRatio: '1 / 1',
+                      aspectRatio: '4 / 3',
                       backgroundColor: '#FFFFFF',
-                      padding: '12px'
+                      padding: '10px'
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();

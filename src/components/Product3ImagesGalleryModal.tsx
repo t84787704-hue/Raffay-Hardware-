@@ -176,10 +176,10 @@ export function Product3ImagesGalleryModal({ product, onClose }: Product3ImagesG
 
             {/* Main Stage Big Image with Swipe & Zoom */}
             <div 
-              className="relative aspect-square w-full rounded-xl overflow-hidden bg-white border-2 border-[#C8A165]/40 flex items-center justify-center group shadow-inner touch-pan-y select-none p-[12px]"
+              className="relative aspect-square w-full rounded-xl overflow-hidden bg-white border-2 border-[#C8A165]/40 flex items-center justify-center group shadow-inner touch-pan-y select-none p-2"
               style={{
                 backgroundColor: '#FFFFFF',
-                padding: '12px'
+                padding: '8px'
               }}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}

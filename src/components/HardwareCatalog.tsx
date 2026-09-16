@@ -348,15 +348,14 @@ export function HardwareCatalog({
                         style={{ backgroundColor: '#5C4A3A' }}
                         className="rounded-2xl p-2.5 sm:p-3 border-2 border-[#5C4A3A] shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 cursor-pointer flex flex-col justify-between group text-white"
                       >
-                        {/* Inner White Box for Hardware Display: aspect-square, 280px, contain, white bg */}
+                        {/* Inner White Box for Hardware Display: aspect-[4/3] p-2.5 bg-white overflow-hidden */}
                         <div 
-                          className="w-full h-[280px] aspect-square bg-white rounded-xl overflow-hidden p-[12px] flex items-center justify-center relative shadow-inner"
+                          className="w-full aspect-[4/3] p-2.5 bg-white rounded-xl overflow-hidden flex items-center justify-center relative shadow-inner"
                           style={{
                             width: '100%',
-                            height: '280px',
-                            aspectRatio: '1 / 1',
+                            aspectRatio: '4 / 3',
                             backgroundColor: '#FFFFFF',
-                            padding: '12px'
+                            padding: '10px'
                           }}
                           onContextMenu={(e) => {
                             e.preventDefault();
