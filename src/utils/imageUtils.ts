@@ -58,23 +58,43 @@ export async function downloadWithWatermark(imageUrl: string, filename?: string)
     const processImage = (img: HTMLImageElement) => {
       try {
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width || 800;
-        canvas.height = img.naturalHeight || img.height || 800;
+        // Final output on a 1000 × 1200 pixel canvas
+        const targetW = 1000;
+        const targetH = 1200;
+        canvas.width = targetW;
+        canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           throw new Error('Canvas 2D context not available');
         }
 
-        // Draw clean image onto canvas
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Clean white background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, targetW, targetH);
 
-        // Center watermark RHC with 0.35 opacity:
+        // Preserve original framing, proportions, composition, element placement,
+        // and subject scale naturally fitting within 1000x1200 canvas without cropping, stretching, or zooming
+        const natW = img.naturalWidth || img.width || targetW;
+        const natH = img.naturalHeight || img.height || targetH;
+        const scale = Math.min(targetW / natW, targetH / natH);
+        const drawW = Math.max(1, Math.round(natW * scale));
+        const drawH = Math.max(1, Math.round(natH * scale));
+        const drawX = Math.round((targetW - drawW) / 2);
+        const drawY = Math.round((targetH - drawH) / 2);
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // Center watermark RHC with 0.35 opacity
+        ctx.save();
         ctx.globalAlpha = 0.35;
         ctx.fillStyle = 'white';
-        ctx.font = `bold ${img.width * 0.15}px Arial`;
+        ctx.font = `bold ${targetW * 0.15}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('RHC', canvas.width / 2, canvas.height / 2);
+        ctx.fillText('RHC', targetW / 2, targetH / 2);
+        ctx.restore();
 
         // Convert canvas to blob and trigger download
         canvas.toBlob((blob) => {
@@ -152,54 +172,56 @@ function triggerDownloadLink(url: string, filename: string) {
 }
 
 /**
- * Standardizes an uploaded product image onto an 800x800 white canvas:
- * 1. Creates an 800x800 solid white (#FFFFFF) background.
- * 2. Centers the uploaded image inside with a max dimension of 700x700, keeping aspect ratio.
- * 3. Exports a standardized 800x800 File for consistent storage in Supabase / Cloudinary.
+ * Standardizes an uploaded product image onto a 1000x1200 white canvas:
+ * 1. Creates a 1000x1200 solid white (#FFFFFF) background.
+ * 2. Centers the uploaded image inside, preserving original framing, proportions,
+ *    composition, element placement, and subject scale without cropping, stretching, or zooming.
+ * 3. Exports a standardized 1000x1200 File for consistent storage in Supabase / Cloudinary.
  */
-export async function standardizeImageTo800x800(
+export async function standardizeImageTo1000x1200(
   input: File | Blob | string, 
   originalFileName?: string
 ): Promise<File> {
   return new Promise((resolve, reject) => {
     const targetFileName = 
       originalFileName || 
-      (input instanceof File ? input.name : `rhc-angle-800x800-${Date.now()}.jpg`);
+      (input instanceof File ? input.name : `rhc-angle-1000x1200-${Date.now()}.jpg`);
 
     const processImageElement = (img: HTMLImageElement) => {
       try {
         const canvas = document.createElement('canvas');
-        canvas.width = 800;
-        canvas.height = 800;
+        const targetW = 1000;
+        const targetH = 1200;
+        canvas.width = targetW;
+        canvas.height = targetH;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           if (input instanceof File) return resolve(input);
           return resolve(new File([], targetFileName, { type: 'image/jpeg' }));
         }
 
-        // 1. Create 800x800 solid white background
+        // 1. Create 1000x1200 solid white background
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, 800, 800);
+        ctx.fillRect(0, 0, targetW, targetH);
 
-        // 2. Center uploaded image inside with max 700x700, keeping aspect ratio
-        const maxDim = 700;
-        const natW = img.naturalWidth || img.width || 700;
-        const natH = img.naturalHeight || img.height || 700;
-        const scale = Math.min(maxDim / natW, maxDim / natH);
+        // 2. Center uploaded image inside, fitting naturally without cropping, stretching, or zooming
+        const natW = img.naturalWidth || img.width || targetW;
+        const natH = img.naturalHeight || img.height || targetH;
+        const scale = Math.min(targetW / natW, targetH / natH);
         const drawW = Math.max(1, Math.round(natW * scale));
         const drawH = Math.max(1, Math.round(natH * scale));
-        const drawX = Math.round((800 - drawW) / 2);
-        const drawY = Math.round((800 - drawH) / 2);
+        const drawX = Math.round((targetW - drawW) / 2);
+        const drawY = Math.round((targetH - drawH) / 2);
 
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-        // 3. Export standardized 800x800 File
+        // 3. Export standardized 1000x1200 File
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              const cleanName = targetFileName.replace(/\.[^/.]+$/, '') + '-800x800.jpg';
+              const cleanName = targetFileName.replace(/\.[^/.]+$/, '') + '-1000x1200.jpg';
               resolve(new File([blob], cleanName, { type: 'image/jpeg' }));
             } else if (input instanceof File) {
               resolve(input);
@@ -211,7 +233,7 @@ export async function standardizeImageTo800x800(
           0.92
         );
       } catch (err) {
-        console.warn('[standardizeImageTo800x800] Canvas processing notice:', err);
+        console.warn('[standardizeImageTo1000x1200] Canvas processing notice:', err);
         if (input instanceof File) resolve(input);
         else resolve(new File([], targetFileName, { type: 'image/jpeg' }));
       }
@@ -248,6 +270,9 @@ export async function standardizeImageTo800x800(
     reader.readAsDataURL(input);
   });
 }
+
+// Alias for backwards compatibility with existing codebase callers
+export const standardizeImageTo800x800 = standardizeImageTo1000x1200;
 
 /**
  * Watermarking on upload is strictly disabled.
