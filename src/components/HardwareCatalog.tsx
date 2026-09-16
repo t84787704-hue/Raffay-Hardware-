@@ -346,17 +346,17 @@ export function HardwareCatalog({
                         id={`product-card-${prod.id}`}
                         onClick={() => handleProductClick(prod)}
                         style={{ backgroundColor: '#5C4A3A' }}
-                        className="rounded-2xl border-2 border-[#5C4A3A] shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 cursor-pointer flex flex-col justify-between group text-white overflow-hidden"
+                        className="rounded-2xl p-2.5 sm:p-3 border-2 border-[#5C4A3A] shadow-md hover:shadow-xl transition-all duration-200 hover:-translate-y-1 cursor-pointer flex flex-col justify-between group text-white"
                       >
-                        {/* Hardware Display: aspect-[4/5], overflow-hidden, p-0, bg-[#f5f3ef], rounded-t-2xl */}
+                        {/* Inner White Box for Hardware Display: aspect-square, 280px, contain, white bg */}
                         <div 
-                          className="w-full aspect-[4/5] overflow-hidden p-0 bg-[#f5f3ef] rounded-t-2xl flex items-center justify-center relative shadow-inner"
+                          className="w-full h-[280px] aspect-square bg-white rounded-xl overflow-hidden p-[12px] flex items-center justify-center relative shadow-inner"
                           style={{
                             width: '100%',
-                            aspectRatio: '4 / 5',
-                            backgroundColor: '#f5f3ef',
-                            padding: 0,
-                            overflow: 'hidden'
+                            height: '280px',
+                            aspectRatio: '1 / 1',
+                            backgroundColor: '#FFFFFF',
+                            padding: '12px'
                           }}
                           onContextMenu={(e) => {
                             e.preventDefault();
@@ -371,15 +371,18 @@ export function HardwareCatalog({
                             style={{
                               width: '100%',
                               height: '100%',
-                              objectFit: 'cover',
-                              objectPosition: 'center'
+                              maxWidth: '100%',
+                              maxHeight: '100%',
+                              objectFit: 'contain',
+                              objectPosition: 'center',
+                              backgroundColor: '#FFFFFF'
                             }}
-                            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain object-center bg-white group-hover:scale-105 transition-transform duration-300"
                             loading="lazy"
                           />
 
                           {/* 4 Views Badge */}
-                          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[10px] font-bold text-[#E0C18B] border border-[#C8A165]/50 flex items-center gap-1 pointer-events-none z-10">
+                          <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[10px] font-bold text-[#E0C18B] border border-[#C8A165]/50 flex items-center gap-1 pointer-events-none">
                             <Layers className="w-3 h-3" />
                             <span>4 VIEWS</span>
                           </div>
@@ -393,8 +396,8 @@ export function HardwareCatalog({
                           </div>
                         </div>
 
-                        {/* Product Metadata (Brown Card Below) */}
-                        <div className="p-3 sm:p-3.5 flex flex-col justify-between flex-1">
+                        {/* Product Metadata */}
+                        <div className="pt-2.5 pb-1 flex flex-col justify-between flex-1">
                           <div>
                             {prod.sku && (
                               <div className="text-[10px] font-mono font-bold text-[#E0C18B] tracking-wider uppercase mb-0.5 truncate">
