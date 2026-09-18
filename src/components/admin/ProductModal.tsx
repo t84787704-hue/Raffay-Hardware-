@@ -22,11 +22,12 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCategoryId }: ProductModalProps) {
-  const { categories, products } = useHardwareStore();
+  const { categories, products, brands } = useHardwareStore();
 
-  // Simplified Form States: Name, Category, 4 Images (Main-Front, Side, Back, Detail)
+  // Simplified Form States: Name, Category, Brand, 4 Images (Main-Front, Side, Back, Detail)
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [brand, setBrand] = useState('');
   const [images, setImages] = useState<string[]>(['', '', '', '']);
   const [isFeatured, setIsFeatured] = useState(false);
 
@@ -42,6 +43,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
   useEffect(() => {
     if (initialData) {
       setName(initialData.productName || initialData.name || '');
+      setBrand(initialData.brand || '');
       setIsFeatured(Boolean(initialData.is_featured ?? initialData.isFeatured ?? false));
       const matchedCatInit = categories.find(c => 
         c.id === initialData.categoryId || 
@@ -73,6 +75,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
       ]);
     } else {
       setName('');
+      setBrand('');
       setIsFeatured(false);
       setCategoryId(defaultCategoryId || categories[0]?.id || 'cat_lock_bearing');
       setImages(['', '', '', '']);
@@ -146,6 +149,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
         categoryId: catIdValue,
         categoryName: catDisplayName,
         category: catDisplayName,
+        brand: brand.trim() || undefined,
         is_featured: isFeatured,
         isFeatured: isFeatured,
         images: validImages.length > 0 ? validImages : [primaryImage].filter(Boolean),
@@ -298,7 +302,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
             </div>
 
             {/* Category Select */}
-            <div className="space-y-1 sm:col-span-2">
+            <div className="space-y-1">
               <label className="font-bold text-[#0A2E24] block">Hardware Category *</label>
               <select
                 id="select-product-category"
@@ -309,6 +313,24 @@ export function ProductModal({ isOpen, onClose, onSave, initialData, defaultCate
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Brand Select */}
+            <div className="space-y-1">
+              <label className="font-bold text-[#0A2E24] block">Brand / Company Dealership</label>
+              <select
+                id="select-product-brand"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 focus:border-[#C8A165] focus:outline-none font-semibold bg-white text-xs cursor-pointer"
+              >
+                <option value="">RHC Group (Direct Import / In-House)</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.name}>
+                    {b.name}
                   </option>
                 ))}
               </select>

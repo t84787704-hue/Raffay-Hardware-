@@ -38,6 +38,7 @@ import { ProductModal } from './ProductModal';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { Product3ImagesGalleryModal } from '../Product3ImagesGalleryModal';
 import { LogoBrandingSettingsCard } from './LogoBrandingSettingsCard';
+import { BrandManagementSection } from './BrandManagementSection';
 import { COMPANY_INFO } from '../../data/hardwareData';
 import { 
   formatImageSrc, 
@@ -74,6 +75,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
     updateCategory, 
     deleteCategory, 
     reorderCategories,
+    brands,
     products, 
     addProduct, 
     updateProduct, 
@@ -88,7 +90,7 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
   } = useHardwareStore();
 
   // Active navigation tab in Admin
-  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'grid' | 'branding'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'grid' | 'branding' | 'brands'>('overview');
 
   // Base64 Cleanup state
   const [isCleaningBase64, setIsCleaningBase64] = useState(false);
@@ -438,6 +440,19 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
           >
             <ImageIcon className="w-3.5 h-3.5" />
             <span>Website Logo &amp; Branding</span>
+          </button>
+
+          <button
+            id="tab-admin-brands"
+            onClick={() => setActiveTab('brands')}
+            className={`px-3.5 py-1.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'brands'
+                ? 'bg-[#C8A165] text-[#0A2E24] shadow'
+                : 'text-gray-300 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Star className="w-3.5 h-3.5 fill-current" />
+            <span>Brand Management ({brands.length})</span>
           </button>
 
         </div>
@@ -862,6 +877,15 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
                   </button>
 
                   <button
+                    onClick={() => setActiveTab('brands')}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#5a3d2b]/10 hover:bg-[#5a3d2b]/20 text-[#5a3d2b] text-xs font-bold transition-colors cursor-pointer border border-[#5a3d2b]/30"
+                    title="Manage brand logos and authorized manufacturers"
+                  >
+                    <Star className="w-3.5 h-3.5 text-[#d4a574] fill-current" />
+                    <span>Brand Logos ({brands.length})</span>
+                  </button>
+
+                  <button
                     id="btn-add-product"
                     onClick={() => {
                       setEditingProduct(null);
@@ -1262,6 +1286,16 @@ export function AdminDashboard({ onBackToStore }: AdminDashboardProps) {
         {activeTab === 'branding' && (
           <div className="space-y-6 animate-in fade-in duration-200 text-left">
             <LogoBrandingSettingsCard onViewStorefront={onBackToStore} />
+          </div>
+        )}
+
+        {/* ===================== BRAND MANAGEMENT TAB ===================== */}
+        {activeTab === 'brands' && (
+          <div className="space-y-6 animate-in fade-in duration-200 text-left">
+            <BrandManagementSection 
+              onViewStorefront={onBackToStore}
+              onBrandClick={(b) => window.open(`/catalog?brand=${encodeURIComponent(b.name)}`, '_blank')}
+            />
           </div>
         )}
 

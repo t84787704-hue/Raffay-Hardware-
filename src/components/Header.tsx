@@ -18,7 +18,8 @@ import {
   Tag,
   CornerDownLeft,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Star
 } from 'lucide-react';
 import { COMPANY_INFO } from '../data/hardwareData';
 import { Category, ProductItem } from '../types';
@@ -288,12 +289,22 @@ export function Header({
             >
               Hardware Catalog
             </button>
-            <a 
-              href="#wholesale-rates" 
-              className="text-gray-200 hover:text-[#C8A165] transition-colors py-2"
+            <button 
+              type="button"
+              id="desktop-nav-brands"
+              onClick={() => {
+                navigate('/brands');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`hover:text-[#C8A165] transition-colors py-2 cursor-pointer font-medium flex items-center gap-1.5 ${
+                location.pathname === '/brands' || location.pathname === '/wholesale-terms'
+                  ? 'text-[#C8A165] font-bold border-b-2 border-[#C8A165]'
+                  : 'text-gray-200'
+              }`}
             >
-              Wholesale Supply
-            </a>
+              <Star className="w-3.5 h-3.5 text-[#C8A165]" />
+              <span>Brands</span>
+            </button>
             <a 
               href="#about" 
               className="text-gray-200 hover:text-[#C8A165] transition-colors py-2"
@@ -477,14 +488,23 @@ export function Header({
               <ShoppingBag className="w-4 h-4 text-[#C8A165]" />
               <span>Hardware Catalog</span>
             </button>
-            <a 
-              href="#wholesale-rates" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="p-2.5 rounded-lg bg-[#0A2E24] text-white hover:text-[#C8A165] flex items-center gap-2 border border-[#C8A165]/20"
+            <button 
+              type="button"
+              id="mobile-nav-brands"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/brands');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`p-2.5 rounded-lg text-white hover:text-[#C8A165] flex items-center gap-2 border text-left cursor-pointer ${
+                location.pathname === '/brands' || location.pathname === '/wholesale-terms'
+                  ? 'bg-[#124A3B] border-[#C8A165] text-[#E0C18B] font-bold'
+                  : 'bg-[#0A2E24] border-[#C8A165]/20'
+              }`}
             >
-              <FileText className="w-4 h-4 text-[#C8A165]" />
-              <span>Wholesale Terms</span>
-            </a>
+              <Star className="w-4 h-4 text-[#C8A165]" />
+              <span>Brands</span>
+            </button>
             <a 
               href="#contact" 
               onClick={() => setMobileMenuOpen(false)}

@@ -40,6 +40,8 @@ export interface ProductItem {
   finish?: string;
   finishes?: string[];
   sizeOrSpec?: string;
+  brand?: string;
+  brandId?: string;
   minOrderQty?: string;
   packSize?: string;
   description?: string;
@@ -75,5 +77,15 @@ export interface AdminUser {
   name: string;
   role: 'Super Admin' | 'Inventory Manager' | 'Sales Admin';
   lastLogin?: string;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  website?: string;
+  order?: number;
+  productCount?: number;
 }
 

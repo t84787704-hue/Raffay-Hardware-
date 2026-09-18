@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, Filter, X, ShoppingBag, Eye, Layers, Sparkles } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, Filter, X, ShoppingBag, Eye, Layers, Sparkles, Star } from 'lucide-react';
 import { ProductItem, Category } from '../types';
 import { useHardwareStore } from '../context/HardwareStoreContext';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
@@ -38,12 +39,31 @@ export function HardwareCatalog({
   setSearchQuery: propSetSearchQuery
 }: HardwareCatalogProps) {
   const { categories, products } = useHardwareStore();
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const brandParam = searchParams.get('brand');
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(brandParam);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(brandParam ? 'all' : initialCategory);
   const [localSearchInput, setLocalSearchInput] = useState<string>(propSearchQuery ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState<string>(propSearchQuery ?? '');
   const [isSearchFocused, setIsSearchFocused] = useState<boolean>(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [galleryProduct, setGalleryProduct] = useState<ProductItem | null>(null);
+
+  // Sync brand parameter if it changes in URL
+  useEffect(() => {
+    if (brandParam) {
+      setSelectedBrand(brandParam);
+      setSelectedCategory('all');
+    }
+  }, [brandParam]);
+
+  const handleClearBrand = () => {
+    setSelectedBrand(null);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('brand');
+    setSearchParams(newParams);
+  };
 
   // Sync external search query
   useEffect(() => {
@@ -111,9 +131,21 @@ export function HardwareCatalog({
   // Fuse.js fuzzy search with threshold 0.4 and 200ms debounce
   const { results: searchSuggestions } = useProductSearch(displayableProducts, localSearchInput, 200);
 
-  // Filter products based on selected category & search query (Fuse.js fuzzy search with 0.4 threshold)
+  // Filter products based on selected category, brand & search query (Fuse.js fuzzy search with 0.4 threshold)
   const filteredProducts = useMemo(() => {
     let list = displayableProducts;
+
+    // Filter by selected brand if active
+    if (selectedBrand) {
+      const bLower = selectedBrand.toLowerCase().trim();
+      list = list.filter(item => {
+        const matchBrand = item.brand && item.brand.toLowerCase().includes(bLower);
+        const matchName = (item.name || item.productName || '').toLowerCase().includes(bLower);
+        const matchDesc = (item.description || '').toLowerCase().includes(bLower);
+        const matchCategory = (item.category || item.categoryName || '').toLowerCase().includes(bLower);
+        return matchBrand || matchName || matchDesc || matchCategory;
+      });
+    }
 
     // Filter by category if not 'all' or 'top-trending'
     if (selectedCategory && selectedCategory !== 'all' && selectedCategory !== 'top-trending') {
@@ -127,7 +159,7 @@ export function HardwareCatalog({
     }
 
     return list;
-  }, [displayableProducts, selectedCategory, debouncedQuery, searchSuggestions]);
+  }, [displayableProducts, selectedBrand, selectedCategory, debouncedQuery, searchSuggestions]);
 
   // Arrange category pills so Kitchen Accessories comes immediately after Top Trending
   const categoryPillsList = useMemo(() => {
@@ -218,6 +250,24 @@ export function HardwareCatalog({
                 )}
               </div>
             </div>
+
+            {/* Active Brand Filter Pill if selected */}
+            {selectedBrand && (
+              <div className="mt-3 flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#d4a574] text-[#0a2e1f] text-xs font-extrabold shadow-sm border border-[#C8A165]">
+                  <Star className="w-3.5 h-3.5 fill-current" />
+                  <span>Filtered by Brand: <strong>{selectedBrand}</strong></span>
+                  <button
+                    type="button"
+                    onClick={handleClearBrand}
+                    className="ml-1.5 p-0.5 rounded-md hover:bg-black/10 text-[#0a2e1f] cursor-pointer"
+                    title="Clear brand filter"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Category Filter Pills Row */}
             <div className="mt-5 pt-4 border-t border-[#C8A165]/30">

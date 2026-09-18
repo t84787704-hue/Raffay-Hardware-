@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Category, ProductItem, InquiryItem, AdminUser } from '../types';
+import { Category, ProductItem, InquiryItem, AdminUser, Brand } from '../types';
 import { INITIAL_CATEGORIES_100 } from '../data/allCategories';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
+import { INITIAL_BRANDS } from '../data/initialBrands';
 import { COMPANY_INFO } from '../data/hardwareData';
 import { 
   supabase,
@@ -34,6 +35,13 @@ interface HardwareStoreContextType {
   deleteCategory: (id: string) => Promise<void>;
   reorderCategories: (newOrderedList: Category[]) => Promise<void>;
   saveCategoriesOrder: (updatedCategories: Category[]) => Promise<void>;
+
+  // Brands
+  brands: Brand[];
+  addBrand: (brand: Omit<Brand, 'id'> & { id?: string }) => Promise<Brand>;
+  updateBrand: (id: string, updated: Partial<Brand>) => Promise<void>;
+  deleteBrand: (id: string) => Promise<void>;
+  resetBrands: () => void;
 
   // Products
   products: ProductItem[];
@@ -79,6 +87,7 @@ const STORAGE_KEYS = {
   INQUIRY: 'rhc_inquiry_cart_v2',
   CUSTOM_PASSWORD: 'rhc_admin_custom_password_v1',
   LOGO: 'rhc_branding_logo_v1',
+  BRANDS: 'rhc_brands',
 };
 
 export const DEFAULT_ADMIN_CREDENTIALS = {
@@ -590,6 +599,82 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
     await reorderCategories(updatedCategories);
   }, [reorderCategories]);
 
+  // Helper to save brands to localStorage
+  const saveBrandsToStorage = (updated: Brand[]) => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEYS.BRANDS, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to save brands to localStorage:', e);
+      }
+    }
+  };
+
+  // Brands state initialized with localStorage fallback to INITIAL_BRANDS
+  const [brands, setBrands] = useState<Brand[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('rhc_brands') || localStorage.getItem('rhc_brands_list_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // If user previously had only 8 dummy brands, expand with INITIAL_BRANDS (20 brands) while keeping any custom brands
+            if (parsed.length <= 8) {
+              const existingIds = new Set(parsed.map((p: any) => p.id || p.name));
+              const combined = [...parsed];
+              for (const initB of INITIAL_BRANDS) {
+                if (!existingIds.has(initB.id) && !existingIds.has(initB.name)) {
+                  combined.push(initB);
+                }
+              }
+              localStorage.setItem('rhc_brands', JSON.stringify(combined));
+              return combined;
+            }
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load brands from localStorage:', e);
+      }
+    }
+    return INITIAL_BRANDS;
+  });
+
+  const addBrand = useCallback(async (brandData: Omit<Brand, 'id'> & { id?: string }): Promise<Brand> => {
+    const newBrand: Brand = {
+      ...brandData,
+      id: brandData.id || `brand-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      order: brandData.order ?? 0,
+    };
+    setBrands(prev => {
+      const updated = [newBrand, ...prev];
+      saveBrandsToStorage(updated);
+      return updated;
+    });
+    return newBrand;
+  }, []);
+
+  const updateBrand = useCallback(async (id: string, updated: Partial<Brand>): Promise<void> => {
+    setBrands(prev => {
+      const next = prev.map(b => b.id === id ? { ...b, ...updated } : b);
+      saveBrandsToStorage(next);
+      return next;
+    });
+  }, []);
+
+  const deleteBrand = useCallback(async (id: string): Promise<void> => {
+    setBrands(prev => {
+      const next = prev.filter(b => b.id !== id);
+      saveBrandsToStorage(next);
+      return next;
+    });
+  }, []);
+
+  const resetBrands = useCallback(() => {
+    setBrands(INITIAL_BRANDS);
+    saveBrandsToStorage(INITIAL_BRANDS);
+  }, []);
+
   // Helper to verify admin permissions for mutations
   const verifyAdminPermission = (): boolean => {
     try {
@@ -1027,6 +1112,12 @@ export const HardwareStoreProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteCategory,
         reorderCategories,
         saveCategoriesOrder,
+
+        brands,
+        addBrand,
+        updateBrand,
+        deleteBrand,
+        resetBrands,
 
         products,
         addProduct,

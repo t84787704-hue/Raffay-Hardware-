@@ -12,6 +12,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { CategoryProductPage } from './components/CategoryProductPage';
 import { Product3ImagesGalleryModal } from './components/Product3ImagesGalleryModal';
 import { HardwareCatalog } from './components/HardwareCatalog';
+import { BrandsPage } from './components/BrandsPage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { Category, ProductItem } from './types';
 
@@ -311,7 +312,71 @@ function HardwareCatalogRoute() {
 }
 
 // ==========================================
-// 5. MAIN APP ROUTER COMPONENT
+// 5. BRANDS PAGE ROUTE (/brands)
+// ==========================================
+function BrandsRoute() {
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [selectedProductForGallery, setSelectedProductForGallery] = useState<ProductItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const { 
+    inquiryItems, 
+    updateInquiryQuantity, 
+    removeInquiryItem, 
+    clearInquiry 
+  } = useHardwareStore();
+
+  const handleSelectCategoryObject = (cat: Category) => {
+    navigate(`/category/${encodeURIComponent(cat.id || cat.name)}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectCategoryId = (id: string) => {
+    navigate(`/category/${encodeURIComponent(id)}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#e8dcc6] text-[#1E2923]">
+      <Header
+        onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+        inquiryCount={inquiryItems.length}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSelectCategory={handleSelectCategoryId}
+        onSelectCategoryObject={handleSelectCategoryObject}
+        onSelectProductObject={(prod) => setSelectedProductForGallery(prod)}
+      />
+
+      <main className="flex-1 bg-[#e8dcc6]">
+        <BrandsPage onOpenQuoteModal={() => setIsQuoteModalOpen(true)} />
+      </main>
+
+      <Footer
+        onSelectCategory={handleSelectCategoryId}
+        onOpenQuoteModal={() => setIsQuoteModalOpen(true)}
+      />
+
+      <WholesaleQuoteModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        inquiryItems={inquiryItems}
+        onUpdateQuantity={updateInquiryQuantity}
+        onRemoveItem={removeInquiryItem}
+        onClearAll={clearInquiry}
+      />
+
+      <Product3ImagesGalleryModal
+        product={selectedProductForGallery}
+        onClose={() => setSelectedProductForGallery(null)}
+      />
+    </div>
+  );
+}
+
+// ==========================================
+// 6. MAIN APP ROUTER COMPONENT
 // ==========================================
 export default function App() {
   return (
@@ -328,6 +393,10 @@ export default function App() {
           {/* Dedicated Hardware Catalog Route */}
           <Route path="/catalog" element={<HardwareCatalogRoute />} />
           <Route path="/hardware-catalog" element={<HardwareCatalogRoute />} />
+
+          {/* Brands Page Route & redirect from /wholesale-terms */}
+          <Route path="/brands" element={<BrandsRoute />} />
+          <Route path="/wholesale-terms" element={<Navigate to="/brands" replace />} />
 
           {/* Category SKU Page */}
           <Route path="/category/:categoryId" element={<CategoryRoute />} />
